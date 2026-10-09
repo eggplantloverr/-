@@ -247,11 +247,7 @@ const I = {
 
 /* ========== 状態 ========== */
 const DEFAULT_PROFILE = () => ({
-  meds: [
-    { id: 'm_suki', name: 'スギ', kind: 'sublingual', time: '07:00', active: true },
-    { id: 'm_dani', name: 'ダニ', kind: 'sublingual', time: '07:00', active: true },
-    { id: 'm_pill', name: '低用量ピル', kind: 'pill', time: '22:00', active: true },
-  ],
+  meds: [],
   temps: [],
   combined: true,
   steps: [
@@ -320,7 +316,7 @@ if (navigator.storage && navigator.storage.persist) navigator.storage.persist().
 function tempActive(t, date) { return t.start <= date && date <= t.end; }
 function itemsFor(date) {
   const p = S.profile, out = [];
-  const active = p.meds.filter((m) => m.active);
+  const active = p.meds.filter((m) => m.active && m.name.trim());
   const sub = active.filter((m) => m.kind === 'sublingual');
   if (p.combined && sub.length) {
     const time = sub.map((m) => m.time).sort()[0];
@@ -408,6 +404,7 @@ function overdueList() {
 }
 
 function viewToday() {
+  const p0 = S.profile;
   const t = todayStr(), { items, total, done } = dayStats(t), taken = getDay(t).taken;
   const od = overdueList()[0];
   const remind = od ? `<div class="remind" role="status"><p>${od.time} の ${esc(od.name)} がまだです</p><button class="btn small" data-act="goto" data-id="med-${esc(od.keys[0])}">記録へ</button></div>` : '';
@@ -415,11 +412,11 @@ function viewToday() {
   const next = items.find((it) => !itemDone(it, taken));
   const frac = total ? done / total : 0;
   const prog = `<div class="card progress"><div class="ring ${all ? 'done' : ''}">${ringSvg(frac)}<div class="mid">${all ? I.check : `${done} / ${total}`}</div></div>
-    <div><div class="t1">${total === 0 ? '今日の薬はありません' : all ? '今日の薬はぜんぶ飲みました' : `あと ${total - done} つ`}</div>
+    <div><div class="t1">${total === 0 ? (p0.meds.length ? '今日の薬はありません' : '薬を追加してください') : all ? '今日の薬はぜんぶ飲みました' : `あと ${total - done} つ`}</div>
     <div class="t2">${all || total === 0 ? dateLabel(t) : next ? `次は ${next.time} の ${esc(next.name)}` : ''}</div></div></div>`;
   return `${head(dateLabel(t))}${remind}${prog}
     <div class="section-title">決まった時間の薬</div>
-    ${items.length ? `<div class="list">${items.map((it) => medCard(it, t)).join('')}</div>` : '<div class="empty">「薬の設定」で薬を足してください</div>'}
+    ${items.length ? `<div class="list">${items.map((it) => medCard(it, t)).join('')}</div>` : '<div class="empty">まだ薬が登録されていません。<br>「薬の設定」で、飲んでいる薬を追加してください。<div style="margin-top:12px"><button class="btn" data-act="tab" data-v="set">薬の設定をひらく</button></div></div>'}
     <div class="section-title">臨時の薬</div>
     ${extrasList(t)}
     <div style="margin-top:12px"><button class="btn ghost block" data-act="addextra" data-d="${t}">＋ 臨時の服用を記録</button></div>`;

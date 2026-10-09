@@ -1,5 +1,5 @@
 // オフラインでも開けるようにするだけ。記録は一切さわらない・送らない。
-const CACHE = 'kusuri-log-v1';
+const CACHE = 'kusuri-log-v2';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
