@@ -9,9 +9,9 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="くすりログ">
-<link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
@@ -278,35 +278,43 @@ function ensureDay(date) {
   return d;
 }
 
-/* ========== 保存 ========== */
-const dirtyDays = new Set(); let dirtyProfile = false; let saving = false; let saveTimer = 0;
-function markSave(state) { S.save = state; const el = $('#savestat'); if (el) { el.textContent = { saved: '保存済み', saving: '保存中…', err: '保存できていません' }[state]; el.className = 'save' + (state === 'err' ? ' err' : ''); } }
-function queueSave() { markSave('saving'); clearTimeout(saveTimer); saveTimer = setTimeout(flush, 300); }
-async function api(method, url, body) {
-  const r = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' });
-  if (r.status === 401) { location.reload(); throw new Error('auth'); }
-  if (!r.ok) throw new Error('http');
-  return r.json();
+/* ========== 保存(iPhoneの中だけ。外には送らない) ========== */
+const STORE = 'kl_data';
+function markSave(state) { S.save = state; const el = $('#savestat'); if (el) { el.textContent = { saved: '保存済み', err: '保存できていません' }[state]; el.className = 'save' + (state === 'err' ? ' err' : ''); } }
+function persist() {
+  try { localStorage.setItem(STORE, JSON.stringify({ v: 1, profile: S.profile, days: S.days })); markSave('saved'); }
+  catch { markSave('err'); }
 }
-async function flush() {
-  if (saving) { saveTimer = setTimeout(flush, 300); return; }
-  saving = true;
+const saveDay = () => persist();
+const saveProfile = () => persist();
+function loadData() {
+  try { const v = JSON.parse(localStorage.getItem(STORE)); if (v && v.profile && v.days) return v; } catch { /* はじめて */ }
+  return null;
+}
+function validBackup(v) {
+  return v && typeof v === 'object' && v.profile && Array.isArray(v.profile.meds) && Array.isArray(v.profile.temps) && Array.isArray(v.profile.steps) && v.days && typeof v.days === 'object' && !Array.isArray(v.days);
+}
+async function exportBackup() {
+  const text = JSON.stringify({ v: 1, exported: nowAt(), profile: S.profile, days: S.days }, null, 1);
+  const file = new File([text], `kusuri-log-${todayStr()}.json`, { type: 'application/json' });
   try {
-    while (dirtyProfile || dirtyDays.size) {
-      if (dirtyProfile) { dirtyProfile = false; try { await api('PUT', '/api/profile', S.profile); } catch (e) { dirtyProfile = true; throw e; } }
-      for (const date of [...dirtyDays]) {
-        dirtyDays.delete(date);
-        try { await api('PUT', '/api/day?date=' + date, getDay(date)); } catch (e) { dirtyDays.add(date); throw e; }
-      }
-    }
-    markSave('saved');
-  } catch (e) {
-    markSave('err'); clearTimeout(saveTimer); saveTimer = setTimeout(flush, 10000);
-  } finally { saving = false; }
+    if (navigator.canShare && navigator.canShare({ files: [file] })) await navigator.share({ files: [file] });
+    else { const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = file.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }
+    try { localStorage.setItem('kl_lastbackup', todayStr()); } catch { /* なし */ }
+    render();
+  } catch (e) { if (e && e.name !== 'AbortError') toast('書き出せませんでした'); }
 }
-window.addEventListener('online', () => { if (dirtyProfile || dirtyDays.size) flush(); });
-const saveDay = (date) => { dirtyDays.add(date); queueSave(); };
-const saveProfile = () => { dirtyProfile = true; queueSave(); };
+function importBackup(file) {
+  const fr = new FileReader();
+  fr.onload = () => {
+    let v = null; try { v = JSON.parse(fr.result); } catch { /* 不正 */ }
+    if (!validBackup(v)) { toast('バックアップのファイルではありません'); return; }
+    if (!confirm('いまの記録をこのバックアップで置きかえます。よろしいですか?')) return;
+    S.profile = v.profile; S.days = v.days; persist(); render(); toast('読み込みました');
+  };
+  fr.readAsText(file);
+}
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
 /* ========== 予定の組み立て ========== */
 function tempActive(t, date) { return t.start <= date && date <= t.end; }
@@ -455,6 +463,11 @@ function viewCal() {
     <div class="summary">ぜんぶ飲めた日 <b>${fullN}</b> / ${tracked}日</div></div>${detail}`;
 }
 
+function lastBackupNote() {
+  let d = null; try { d = localStorage.getItem('kl_lastbackup'); } catch { /* なし */ }
+  return d ? `最後の書き出し: ${dateLabel(d)}` : 'まだ書き出していません。';
+}
+
 function viewSet() {
   const p = S.profile;
   const meds = p.meds.map((m, i) => `<div class="med-edit">
@@ -478,8 +491,11 @@ function viewSet() {
     <p class="small-note">ONにすると、舌下の薬が1枚にまとまります。</p></div></div>
     <div class="section-title">続けて飲む臨時の薬</div>
     <p class="section-note">終了した処方も残ります。</p><div class="card">${temps}</div>
-    <div class="section-title">そのほか</div>
-    <div class="card"><div class="two"><button class="btn ghost" data-act="testsound">音を試す</button><button class="btn danger" data-act="logout">ログアウト</button></div></div>`;
+    <div class="section-title">バックアップ</div>
+    <p class="section-note">記録はこのiPhoneの中だけに保存されています。機種変更やデータ消去に備えて、ときどき書き出してください。${lastBackupNote()}</p>
+    <div class="card"><div class="two"><button class="btn ghost" data-act="export">書き出す</button><button class="btn ghost" data-act="import">読み込む</button></div>
+    <input type="file" id="impfile" accept="application/json,.json" hidden></div>
+    <div class="card" style="margin-top:12px"><button class="btn ghost block" data-act="testsound">音を試す</button></div>`;
 }
 
 /* ========== 臨時の服用シート ========== */
@@ -653,9 +669,11 @@ document.addEventListener('click', (e) => {
     case 'deltemp': if (confirm(`「${p.temps[i].name}」を削除しますか?`)) { p.temps.splice(i, 1); saveProfile(); render(); } return;
     case 'stoptimer': stopTimer(); return;
     case 'testsound': ensureAudio(); beep(1); setTimeout(() => beep(3, 1040), 900); return;
-    case 'logout': if (confirm('ログアウトしますか?')) fetch('/api/logout', { method: 'POST' }).finally(() => { stopTimer(); location.reload(); }); return;
+    case 'export': exportBackup(); return;
+    case 'import': $('#impfile').click(); return;
   }
 });
+document.addEventListener('change', (e) => { if (e.target.id === 'impfile' && e.target.files[0]) { importBackup(e.target.files[0]); e.target.value = ''; } });
 document.addEventListener('submit', (e) => { if (e.target.id === 'xform') submitExtra(e); });
 document.addEventListener('change', (e) => {
   const t = e.target, p = S.profile; if (!p) return;
@@ -672,28 +690,21 @@ document.addEventListener('change', (e) => {
 });
 
 /* ========== 起動 ========== */
-async function boot() {
-  try {
-    const r = await fetch('/api/state', { credentials: 'same-origin' });
-    if (r.status === 401) { location.reload(); return; }
-    if (!r.ok) throw new Error();
-    const data = await r.json();
-    S.days = data.days || {};
-    if (data.profile) {
-      S.profile = data.profile;
-      const dp = DEFAULT_PROFILE();
-      S.profile.since = S.profile.since || dp.since;
-    } else { S.profile = DEFAULT_PROFILE(); saveProfile(); }
-    S.ready = true;
-    loadTimer();
-    render();
-    if (T) { if (!T.finished) { acquireWake(); lastIdx = timerCalc().idx; } runTick(); }
-    checkOverdue();
-  } catch {
-    $('#app').innerHTML = '<div class="loading">読み込めませんでした。<br><button class="btn" style="margin-top:16px" onclick="location.reload()">もう一度</button></div>';
-  }
+function boot() {
+  const data = loadData();
+  if (data) {
+    S.profile = data.profile; S.days = data.days;
+    S.profile.since = S.profile.since || todayStr();
+  } else { S.profile = DEFAULT_PROFILE(); S.days = {}; }
+  S.ready = true;
+  if (!data) persist();
+  loadTimer();
+  render();
+  if (T) { if (!T.finished) { acquireWake(); lastIdx = timerCalc().idx; } runTick(); }
+  checkOverdue();
 }
 boot();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
 </html>
