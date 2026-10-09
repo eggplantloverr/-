@@ -1,0 +1,3 @@
+# コピーして .dev.vars にする(.dev.vars はコミットしない)
+APP_PASSWORD=ローカル確認用のパスワード
+SESSION_SECRET=ランダムな長い文字列

@@ -1,0 +1,699 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="theme-color" content="#7c5cd6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="くすりログ">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Zen+Maru+Gothic:wght@500;700&display=swap" rel="stylesheet">
+<title>くすりログ</title>
+<style>
+:root{
+  --bg:#faf8ff; --card:#ffffff; --text:#2a2340; --sub:#7a7390; --line:#e6e0f6;
+  --accent:#7c5cd6; --accent-ink:#ffffff; --accent-soft:#efe9fd; --accent-deep:#5b3fb5;
+  --ok:#2f9e6b; --ok-soft:#e3f6ec; --ok-line:#b6e3cb;
+  --warn:#d9731a; --warn-soft:#fff0e0; --warn-line:#f6cfa3;
+  --shadow:0 1px 2px rgba(60,40,120,.06),0 4px 14px rgba(60,40,120,.06);
+  --font-head:"Zen Maru Gothic","Hiragino Maru Gothic ProN",sans-serif;
+  --font-body:"Zen Kaku Gothic New","Hiragino Sans",-apple-system,sans-serif;
+  --font-mono:"DM Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#14111d; --card:#1e1a2b; --text:#f0ecfa; --sub:#a59fbb; --line:#352f4a;
+  --accent:#9d83f0; --accent-ink:#17102b; --accent-soft:#2b2445; --accent-deep:#c9b9ff;
+  --ok:#4cc38a; --ok-soft:#173326; --ok-line:#245a41;
+  --warn:#fb923c; --warn-soft:#3a2614; --warn-line:#6b4220;
+  --shadow:0 1px 2px rgba(0,0,0,.3);
+}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:16px;line-height:1.5;
+  padding-top:env(safe-area-inset-top)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.mono{font-family:var(--font-mono)}
+#app{max-width:520px;margin:0 auto;padding:12px 16px calc(86px + env(safe-area-inset-bottom))}
+body.timer-on #app{padding-bottom:calc(86px + 232px + env(safe-area-inset-bottom))}
+
+/* ヘッダー */
+.top{display:flex;align-items:center;justify-content:space-between;min-height:44px;margin-bottom:8px}
+.top h1{font-family:var(--font-head);font-size:22px;margin:0;font-weight:700}
+.save{font-size:13px;color:var(--sub)}
+.save.err{color:var(--warn);font-weight:700}
+
+/* ボタン */
+.btn{min-height:44px;padding:0 18px;border-radius:14px;border:1.5px solid var(--accent);background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:15px}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.block{width:100%}
+.btn.small{min-height:44px;padding:0 14px;font-size:14px}
+.btn.danger{border-color:var(--warn);color:var(--warn);background:transparent}
+.link{background:none;border:0;color:var(--sub);text-decoration:underline;min-height:44px;padding:0 6px;font-size:13px}
+.icon-btn{width:44px;height:44px;border-radius:12px;border:0;background:transparent;color:var(--accent);display:inline-flex;align-items:center;justify-content:center}
+.icon-btn:active,.btn:active{opacity:.7}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* カード */
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);padding:16px}
+.section-title{font-family:var(--font-head);font-size:16px;font-weight:700;margin:22px 4px 10px;color:var(--text)}
+.section-note{font-size:13px;color:var(--sub);margin:-4px 4px 10px}
+
+/* リマインド */
+.remind{display:flex;align-items:center;gap:12px;background:var(--warn-soft);border:1.5px solid var(--warn-line);border-radius:16px;padding:12px 12px 12px 16px;margin-bottom:12px}
+.remind p{margin:0;flex:1;font-weight:700;font-size:15px}
+.remind .btn{background:var(--warn);border-color:var(--warn);color:#fff;white-space:nowrap}
+@media (prefers-color-scheme:dark){.remind .btn{color:#1c1004}}
+
+/* 進み具合 */
+.progress{display:flex;align-items:center;gap:18px}
+.ring{position:relative;width:96px;height:96px;flex:none}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .bg{stroke:var(--accent-soft)}
+.ring .fg{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .5s ease}
+.ring.done .fg{stroke:var(--ok)}
+.ring .mid{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:18px;font-weight:500}
+.ring .mid svg{width:40px;height:40px;transform:none;color:var(--ok)}
+.progress .t1{font-family:var(--font-head);font-weight:700;font-size:16px;word-break:keep-all;overflow-wrap:anywhere}
+.progress .t2{color:var(--sub);font-size:14px;margin-top:2px}
+
+/* 薬カード */
+.list{display:flex;flex-direction:column;gap:10px}
+.med{display:flex;align-items:center;gap:12px;background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:12px 12px 12px 14px;box-shadow:var(--shadow)}
+.med .time{font-family:var(--font-mono);font-size:17px;font-weight:500;width:54px;flex:none;color:var(--accent-deep)}
+.med .body{flex:1;min-width:0}
+.med .name{font-weight:700;font-size:16px;overflow-wrap:anywhere}
+.med .sub{font-size:13px;color:var(--sub);overflow-wrap:anywhere}
+.med .act{flex:none}
+.med.done{background:var(--ok-soft);border-color:var(--ok-line)}
+.med.done .time{color:var(--ok)}
+.med.late{border-color:var(--warn-line)}
+.tag{display:inline-block;font-size:12px;font-weight:700;color:var(--warn);background:var(--warn-soft);border:1px solid var(--warn-line);border-radius:999px;padding:0 8px;margin-top:3px}
+.tag.ok{color:var(--ok);background:transparent;border-color:transparent;padding:0}
+.med.disabled .btn{opacity:.4;pointer-events:none}
+.empty{color:var(--sub);text-align:center;padding:18px 8px;font-size:14px}
+
+/* 臨時 */
+.extra{display:flex;align-items:center;gap:12px;background:var(--warn-soft);border:1.5px solid var(--warn-line);border-radius:16px;padding:10px 6px 10px 14px}
+.extra .time{font-family:var(--font-mono);font-size:15px;width:54px;flex:none;color:var(--warn)}
+.extra .body{flex:1;min-width:0}
+.extra .name{font-weight:700;overflow-wrap:anywhere}
+.extra .sub{font-size:13px;color:var(--sub);overflow-wrap:anywhere}
+.extra .icon-btn{color:var(--sub)}
+
+/* タブ */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+.tabs-in{max-width:520px;margin:0 auto;display:flex}
+.tab{flex:1;min-height:60px;border:0;background:none;color:var(--sub);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;font-weight:700}
+.tab svg{width:24px;height:24px}
+.tab[aria-current=page]{color:var(--accent)}
+
+/* カレンダー */
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.cal-head h2{font-family:var(--font-head);font-size:19px;margin:0}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.dow{text-align:center;font-size:12px;color:var(--sub);padding:4px 0}
+.cell{position:relative;min-height:56px;border:0;background:none;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;padding:4px 0}
+.cell .n{font-family:var(--font-mono);font-size:12px;color:var(--sub);line-height:1.2}
+.cell.today .n{color:var(--accent);font-weight:700}
+.cell.sel{background:var(--accent-soft)}
+.cell.blank{visibility:hidden}
+.mark{position:relative;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+.mark.full{background:var(--accent);color:var(--accent-ink)}
+.mark.full svg{width:16px;height:16px}
+.mark.part{border:2px solid var(--accent);background:linear-gradient(to top,var(--accent) 50%,transparent 50%)}
+.mark.miss{border:2px dashed var(--sub)}
+.mark.none{border:2px solid transparent}
+.dot{position:absolute;top:-1px;right:-3px;width:8px;height:8px;border-radius:50%;background:var(--warn);border:1.5px solid var(--card)}
+.cell.sel .dot{border-color:var(--accent-soft)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--sub);margin-top:10px;align-items:center}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend .mark{width:16px;height:16px;border-width:1.5px}
+.legend .mark.full svg{width:10px;height:10px}
+.legend .dot{position:static;display:inline-block}
+.summary{font-family:var(--font-head);font-weight:700;margin-top:12px}
+.summary b{font-family:var(--font-mono);font-size:20px;color:var(--accent)}
+
+/* 設定 */
+.row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.row .grow{flex:1;min-width:0}
+input[type=text],input[type=time],input[type=date],input[type=number],select,textarea{width:100%;min-height:44px;border:1.5px solid var(--line);border-radius:12px;background:var(--bg);padding:6px 12px;font-size:16px}
+input[type=number]{width:72px;text-align:center;font-family:var(--font-mono)}
+input[type=time]{width:112px;font-family:var(--font-mono)}
+select{width:auto}
+textarea{resize:vertical;min-height:64px}
+.med-edit{padding:12px 0;border-bottom:1px solid var(--line)}
+.med-edit:last-child{border-bottom:0}
+.med-edit .l1{display:flex;gap:8px;margin-bottom:8px}
+.med-edit .l2{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;font-size:14px}
+.switch input{appearance:none;-webkit-appearance:none;width:50px;height:30px;border-radius:999px;background:var(--line);position:relative;margin:0;transition:background .2s;flex:none}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.switch input:checked{background:var(--accent)}
+.switch input:checked::after{transform:translateX(20px)}
+.step-row{display:flex;align-items:center;gap:6px;padding:6px 0}
+.step-row .no{font-family:var(--font-mono);color:var(--sub);width:18px;text-align:center;flex:none}
+.step-row .unit{font-size:13px;color:var(--sub);flex:none}
+.small-note{font-size:13px;color:var(--sub);margin:6px 0 0}
+
+/* シート */
+.scrim{position:fixed;inset:0;z-index:40;background:rgba(20,10,40,.45);display:flex;align-items:flex-end;justify-content:center;animation:fade .2s ease}
+.sheet{width:100%;max-width:520px;max-height:92dvh;overflow:auto;background:var(--card);border-radius:24px 24px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));animation:up .25s ease}
+.sheet h3{font-family:var(--font-head);font-size:18px;margin:0 0 12px;display:flex;justify-content:space-between;align-items:center}
+.field{margin-bottom:14px}
+.field>label,.field>.lab{display:block;font-size:13px;font-weight:700;color:var(--sub);margin-bottom:6px}
+.seg{display:flex;background:var(--accent-soft);border-radius:14px;padding:3px}
+.seg button{flex:1;min-height:44px;border:0;background:none;border-radius:11px;font-weight:700;font-size:14px;color:var(--sub)}
+.seg button[aria-pressed=true]{background:var(--card);color:var(--accent);box-shadow:var(--shadow)}
+.checks{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.chk{position:relative}
+.chk input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
+.chk span{display:flex;align-items:center;justify-content:center;min-height:44px;border:1.5px solid var(--line);border-radius:12px;font-size:14px;font-weight:700;color:var(--sub)}
+.chk input:checked+span{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.chk input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.two{display:flex;gap:10px}
+.two>*{flex:1;min-width:0}
+
+/* 舌下タイマー */
+#timer{position:fixed;left:0;right:0;bottom:calc(60px + env(safe-area-inset-bottom));z-index:30;padding:0 12px 10px;pointer-events:none}
+#timer .tcard{pointer-events:auto;max-width:496px;margin:0 auto;background:var(--accent);color:var(--accent-ink);border-radius:22px;padding:14px 16px;box-shadow:0 8px 28px rgba(60,30,140,.35)}
+@media (prefers-color-scheme:dark){#timer .tcard{background:#4a3a8c;color:#fff}}
+.tmain{display:flex;align-items:center;gap:14px}
+.tring{position:relative;width:84px;height:84px;flex:none}
+.tring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.tring .bg{stroke:rgba(255,255,255,.25)}
+.tring .fg{stroke:#fff;stroke-linecap:round}
+.tring .tm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:21px;font-weight:500}
+.tname{font-family:var(--font-head);font-size:17px;font-weight:700;line-height:1.35}
+.tsteps{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:2px;font-size:13px}
+.tsteps li{display:flex;gap:8px;opacity:.65}
+.tsteps li.now{opacity:1;font-weight:700}
+.tsteps li.past{opacity:.5;text-decoration:line-through}
+.tsteps .mono{margin-left:auto}
+.tcard .btn{background:rgba(255,255,255,.18);border-color:transparent;color:inherit;margin-top:8px;width:100%}
+
+/* トースト */
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom));z-index:60;background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;max-width:90vw}
+
+.loading{text-align:center;color:var(--sub);padding:80px 0}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+@keyframes up{from{transform:translateY(40px);opacity:.6}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">読み込み中…</div></div>
+<div id="timer"></div>
+<nav class="tabs" aria-label="メニュー"><div class="tabs-in" id="tabs"></div></nav>
+<div id="overlay"></div>
+
+<script>
+'use strict';
+/* ========== ユーティリティ ========== */
+const $ = (s) => document.querySelector(s);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const pad = (n) => String(n).padStart(2, '0');
+const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const parseYmd = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+const nowAt = () => { const d = new Date(); return `${ymd(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const hhmm = (at) => (at || '').slice(11, 16);
+const addDays = (s, n) => { const d = parseYmd(s); d.setDate(d.getDate() + n); return ymd(d); };
+const WD = ['日', '月', '火', '水', '木', '金', '土'];
+const dateLabel = (s) => { const d = parseYmd(s); return `${d.getMonth() + 1}月${d.getDate()}日(${WD[d.getDay()]})`; };
+const uid = () => Math.random().toString(36).slice(2, 9);
+const todayStr = () => ymd(new Date());
+const KIND = { sublingual: '舌下', pill: '錠剤', other: 'その他' };
+const TIMINGS = [{ k: '朝', t: '08:00' }, { k: '昼', t: '12:00' }, { k: '夕', t: '18:00' }, { k: '寝る前', t: '22:00' }];
+
+const I = {
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+  today: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/></svg>',
+  cal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></svg>',
+  pill: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="8.5" width="19" height="7" rx="3.5" transform="rotate(-45 12 12)"/><path d="M9.5 9.5l5 5" /></svg>',
+  prev: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>',
+  next: '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>',
+  x: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  up: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>',
+  down: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+};
+
+/* ========== 状態 ========== */
+const DEFAULT_PROFILE = () => ({
+  meds: [
+    { id: 'm_suki', name: 'スギ', kind: 'sublingual', time: '07:00', active: true },
+    { id: 'm_dani', name: 'ダニ', kind: 'sublingual', time: '07:00', active: true },
+    { id: 'm_pill', name: '低用量ピル', kind: 'pill', time: '22:00', active: true },
+  ],
+  temps: [],
+  combined: true,
+  steps: [
+    { label: '1つ目を舌の下で保持', min: 1 },
+    { label: '2つ目を舌の下で保持', min: 1 },
+    { label: '飲み物を飲まない', min: 5 },
+  ],
+  since: todayStr(),
+});
+
+const S = {
+  profile: null, days: {}, tab: 'today',
+  calMonth: todayStr().slice(0, 7), calSel: null,
+  save: 'saved', ready: false,
+};
+let remindShown = new Set();   // 音を鳴らしたリマインド
+let overdueKey = '';
+
+const getDay = (date) => S.days[date] || { date, taken: {}, extras: [] };
+function ensureDay(date) {
+  if (!S.days[date]) S.days[date] = { date, taken: {}, extras: [] };
+  const d = S.days[date];
+  d.taken = d.taken || {}; d.extras = d.extras || [];
+  return d;
+}
+
+/* ========== 保存 ========== */
+const dirtyDays = new Set(); let dirtyProfile = false; let saving = false; let saveTimer = 0;
+function markSave(state) { S.save = state; const el = $('#savestat'); if (el) { el.textContent = { saved: '保存済み', saving: '保存中…', err: '保存できていません' }[state]; el.className = 'save' + (state === 'err' ? ' err' : ''); } }
+function queueSave() { markSave('saving'); clearTimeout(saveTimer); saveTimer = setTimeout(flush, 300); }
+async function api(method, url, body) {
+  const r = await fetch(url, { method, headers: body ? { 'Content-Type': 'application/json' } : undefined, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' });
+  if (r.status === 401) { location.reload(); throw new Error('auth'); }
+  if (!r.ok) throw new Error('http');
+  return r.json();
+}
+async function flush() {
+  if (saving) { saveTimer = setTimeout(flush, 300); return; }
+  saving = true;
+  try {
+    while (dirtyProfile || dirtyDays.size) {
+      if (dirtyProfile) { dirtyProfile = false; try { await api('PUT', '/api/profile', S.profile); } catch (e) { dirtyProfile = true; throw e; } }
+      for (const date of [...dirtyDays]) {
+        dirtyDays.delete(date);
+        try { await api('PUT', '/api/day?date=' + date, getDay(date)); } catch (e) { dirtyDays.add(date); throw e; }
+      }
+    }
+    markSave('saved');
+  } catch (e) {
+    markSave('err'); clearTimeout(saveTimer); saveTimer = setTimeout(flush, 10000);
+  } finally { saving = false; }
+}
+window.addEventListener('online', () => { if (dirtyProfile || dirtyDays.size) flush(); });
+const saveDay = (date) => { dirtyDays.add(date); queueSave(); };
+const saveProfile = () => { dirtyProfile = true; queueSave(); };
+
+/* ========== 予定の組み立て ========== */
+function tempActive(t, date) { return t.start <= date && date <= t.end; }
+function itemsFor(date) {
+  const p = S.profile, out = [];
+  const active = p.meds.filter((m) => m.active);
+  const sub = active.filter((m) => m.kind === 'sublingual');
+  if (p.combined && sub.length) {
+    const time = sub.map((m) => m.time).sort()[0];
+    out.push({ type: 'group', keys: sub.map((m) => m.id), name: sub.map((m) => m.name).join(' → '), sub: '舌下', time });
+  }
+  for (const m of active) {
+    if (p.combined && m.kind === 'sublingual') continue;
+    out.push({ type: m.kind === 'sublingual' ? 'subone' : 'single', keys: [m.id], name: m.name, sub: KIND[m.kind] || '', time: m.time });
+  }
+  for (const t of p.temps) {
+    if (!tempActive(t, date)) continue;
+    t.timings.forEach((ti) => {
+      const tm = TIMINGS[ti]; if (!tm) return;
+      out.push({ type: 'temp', keys: [`t_${t.id}_${ti}`], name: t.name, sub: `臨時・${tm.k}${t.memo ? '・' + t.memo : ''}`, time: tm.t });
+    });
+  }
+  out.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
+  return out;
+}
+function dayStats(date) {
+  const items = itemsFor(date), taken = getDay(date).taken;
+  let total = 0, done = 0;
+  for (const it of items) for (const k of it.keys) { total++; if (taken[k]) done++; }
+  return { items, total, done };
+}
+const itemDone = (it, taken) => it.keys.every((k) => taken[k]);
+function isOverdue(it, date, taken) {
+  if (date !== todayStr() || itemDone(it, taken)) return false;
+  const d = new Date(); return it.time < `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function medName(key) {
+  const m = S.profile.meds.find((x) => x.id === key); if (m) return m.name;
+  const mm = /^t_(.+)_(\d)$/.exec(key); const t = mm && S.profile.temps.find((x) => x.id === mm[1]); return t ? t.name : '';
+}
+
+/* ========== 描画 ========== */
+function render() {
+  if (!S.ready) return;
+  $('#tabs').innerHTML = [['today', '今日', I.today], ['cal', 'カレンダー', I.cal], ['set', '薬の設定', I.pill]]
+    .map(([k, l, ic]) => `<button class="tab" data-act="tab" data-v="${k}" ${S.tab === k ? 'aria-current="page"' : ''}>${ic}<span>${l}</span></button>`).join('');
+  const v = { today: viewToday, cal: viewCal, set: viewSet }[S.tab]();
+  $('#app').innerHTML = v;
+  markSave(S.save);
+  renderTimer();
+}
+
+function head(title) { return `<div class="top"><h1>${title}</h1><span class="save" id="savestat"></span></div>`; }
+
+function ringSvg(frac, r = 40) {
+  const c = 2 * Math.PI * r;
+  return `<svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="${r}" fill="none" stroke-width="10"/><circle class="fg" cx="50" cy="50" r="${r}" fill="none" stroke-width="10" stroke-dasharray="${c.toFixed(2)}" stroke-dashoffset="${(c * (1 - frac)).toFixed(2)}"/></svg>`;
+}
+
+function medCard(it, date) {
+  const taken = getDay(date).taken, done = itemDone(it, taken);
+  const future = date > todayStr();
+  const late = isOverdue(it, date, taken);
+  const keys = it.keys.join(',');
+  let right, extra = '';
+  if (done) {
+    const ats = it.keys.map((k) => taken[k].at).sort();
+    extra = `<div class="sub"><span class="tag ok">${hhmm(ats[ats.length - 1])} に記録</span></div>`;
+    right = `<button class="link" data-act="untake" data-k="${keys}" data-d="${date}">取り消す</button>`;
+  } else if (it.type === 'group' || it.type === 'subone') {
+    right = `<button class="btn" data-act="start" data-k="${keys}" data-d="${date}">始める</button>`;
+  } else {
+    right = `<button class="btn" data-act="take" data-k="${keys}" data-d="${date}">飲んだ</button>`;
+  }
+  if (late) extra = '<div><span class="tag">時間を過ぎています</span></div>';
+  return `<div class="med ${done ? 'done' : ''} ${late ? 'late' : ''} ${future ? 'disabled' : ''}" id="med-${esc(it.keys[0])}">
+    <div class="time">${it.time}</div>
+    <div class="body"><div class="name">${esc(it.name)}</div><div class="sub">${esc(it.sub)}</div>${extra}</div>
+    <div class="act">${right}</div></div>`;
+}
+
+function extrasList(date) {
+  const ex = getDay(date).extras.slice().sort((a, b) => (a.at < b.at ? -1 : 1));
+  if (!ex.length) return '<div class="empty">臨時の服用はまだありません</div>';
+  return `<div class="list">${ex.map((e) => `<div class="extra"><div class="time">${hhmm(e.at)}</div><div class="body"><div class="name">${esc(e.name)}</div>${e.memo ? `<div class="sub">${esc(e.memo)}</div>` : ''}</div><button class="icon-btn" aria-label="${esc(e.name)}の記録を消す" data-act="delextra" data-id="${esc(e.id)}" data-d="${date}">${I.x}</button></div>`).join('')}</div>`;
+}
+
+function overdueList() {
+  const t = todayStr(), taken = getDay(t).taken;
+  return itemsFor(t).filter((it) => isOverdue(it, t, taken));
+}
+
+function viewToday() {
+  const t = todayStr(), { items, total, done } = dayStats(t), taken = getDay(t).taken;
+  const od = overdueList()[0];
+  const remind = od ? `<div class="remind" role="status"><p>${od.time} の ${esc(od.name)} がまだです</p><button class="btn small" data-act="goto" data-id="med-${esc(od.keys[0])}">記録へ</button></div>` : '';
+  const all = total > 0 && done === total;
+  const next = items.find((it) => !itemDone(it, taken));
+  const frac = total ? done / total : 0;
+  const prog = `<div class="card progress"><div class="ring ${all ? 'done' : ''}">${ringSvg(frac)}<div class="mid">${all ? I.check : `${done} / ${total}`}</div></div>
+    <div><div class="t1">${total === 0 ? '今日の薬はありません' : all ? '今日の薬はぜんぶ飲みました' : `あと ${total - done} つ`}</div>
+    <div class="t2">${all || total === 0 ? dateLabel(t) : next ? `次は ${next.time} の ${esc(next.name)}` : ''}</div></div></div>`;
+  return `${head(dateLabel(t))}${remind}${prog}
+    <div class="section-title">決まった時間の薬</div>
+    ${items.length ? `<div class="list">${items.map((it) => medCard(it, t)).join('')}</div>` : '<div class="empty">「薬の設定」で薬を足してください</div>'}
+    <div class="section-title">臨時の薬</div>
+    ${extrasList(t)}
+    <div style="margin-top:12px"><button class="btn ghost block" data-act="addextra" data-d="${t}">＋ 臨時の服用を記録</button></div>`;
+}
+
+function dayStatus(date) {
+  const { total, done } = dayStats(date), today = todayStr(), p = S.profile;
+  const ex = getDay(date).extras.length > 0;
+  let s = 'none';
+  if (total && date >= (p.since || '0000') && date <= today) {
+    if (done === total) s = 'full';
+    else if (done > 0) s = 'part';
+    else if (date < today) s = 'miss';
+  }
+  return { s, ex, total, done };
+}
+
+function viewCal() {
+  const [y, m] = S.calMonth.split('-').map(Number), first = new Date(y, m - 1, 1);
+  const days = new Date(y, m, 0).getDate(), today = todayStr();
+  let cells = '', fullN = 0, tracked = 0;
+  for (let i = 0; i < first.getDay(); i++) cells += '<div class="cell blank"></div>';
+  for (let d = 1; d <= days; d++) {
+    const ds = `${y}-${pad(m)}-${pad(d)}`, st = dayStatus(ds);
+    if (st.total && ds >= (S.profile.since || '0000') && ds <= today) { tracked++; if (st.s === 'full') fullN++; }
+    const label = { full: 'ぜんぶ飲んだ', part: '一部だけ', miss: '飲み忘れ', none: '' }[st.s];
+    cells += `<button class="cell ${ds === today ? 'today' : ''} ${ds === S.calSel ? 'sel' : ''}" data-act="sel" data-d="${ds}" aria-label="${m}月${d}日 ${label}${st.ex ? ' 臨時あり' : ''}"><span class="n">${d}</span><span class="mark ${st.s}">${st.s === 'full' ? I.check : ''}${st.ex ? '<span class="dot"></span>' : ''}</span></button>`;
+  }
+  let detail = '';
+  if (S.calSel && S.calSel.startsWith(S.calMonth)) {
+    const ds = S.calSel, items = itemsFor(ds);
+    detail = `<div class="section-title">${dateLabel(ds)}</div>
+      ${items.length ? `<div class="list">${items.map((it) => medCard(it, ds)).join('')}</div>` : '<div class="empty">この日の予定の薬はありません</div>'}
+      <div class="section-title">臨時の薬</div>${extrasList(ds)}
+      <div style="margin-top:12px"><button class="btn ghost block" data-act="addextra" data-d="${ds}">＋ 臨時の服用を記録</button></div>`;
+  }
+  return `${head('カレンダー')}
+    <div class="card"><div class="cal-head"><button class="icon-btn" data-act="month" data-v="-1" aria-label="前の月">${I.prev}</button><h2>${y}年${m}月</h2><button class="icon-btn" data-act="month" data-v="1" aria-label="次の月">${I.next}</button></div>
+    <div class="grid">${WD.map((w) => `<div class="dow">${w}</div>`).join('')}${cells}</div>
+    <div class="legend"><span><i class="mark full">${I.check}</i>ぜんぶ</span><span><i class="mark part"></i>一部</span><span><i class="mark miss"></i>飲み忘れ</span><span><i class="dot"></i>臨時あり</span></div>
+    <div class="summary">ぜんぶ飲めた日 <b>${fullN}</b> / ${tracked}日</div></div>${detail}`;
+}
+
+function viewSet() {
+  const p = S.profile;
+  const meds = p.meds.map((m, i) => `<div class="med-edit">
+    <div class="l1"><input type="text" value="${esc(m.name)}" data-f="name" data-i="${i}" aria-label="薬の名前" placeholder="薬の名前"><button class="icon-btn" data-act="delmed" data-i="${i}" aria-label="${esc(m.name)}を削除">${I.x}</button></div>
+    <div class="l2"><select data-f="kind" data-i="${i}" aria-label="種類">${Object.entries(KIND).map(([k, l]) => `<option value="${k}" ${m.kind === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+    <input type="time" value="${esc(m.time)}" data-f="time" data-i="${i}" aria-label="飲む時間">
+    <label class="switch"><input type="checkbox" data-f="active" data-i="${i}" ${m.active ? 'checked' : ''}>今日のリストに出す</label></div></div>`).join('');
+  const steps = p.steps.map((s, i) => `<div class="step-row"><span class="no">${i + 1}</span>
+    <input type="text" value="${esc(s.label)}" data-s="label" data-i="${i}" aria-label="手順の内容">
+    <input type="number" min="0.5" step="0.5" inputmode="decimal" value="${s.min}" data-s="min" data-i="${i}" aria-label="分数"><span class="unit">分</span>
+    <button class="icon-btn" data-act="stepup" data-i="${i}" aria-label="上へ" ${i === 0 ? 'disabled style="opacity:.3"' : ''}>${I.up}</button>
+    <button class="icon-btn" data-act="stepdown" data-i="${i}" aria-label="下へ" ${i === p.steps.length - 1 ? 'disabled style="opacity:.3"' : ''}>${I.down}</button>
+    <button class="icon-btn" data-act="delstep" data-i="${i}" aria-label="手順を削除">${I.x}</button></div>`).join('');
+  const temps = p.temps.length ? p.temps.map((t, i) => `<div class="row"><div class="grow"><b>${esc(t.name)}</b><div class="small-note">${t.timings.map((x) => TIMINGS[x]?.k).join('・')} / ${t.start.slice(5).replace('-', '/')} 〜 ${t.end.slice(5).replace('-', '/')}${t.end < todayStr() ? '(終了)' : ''}${t.memo ? ' / ' + esc(t.memo) : ''}</div></div><button class="icon-btn" data-act="deltemp" data-i="${i}" aria-label="${esc(t.name)}を削除">${I.x}</button></div>`).join('') : '<div class="empty">まだありません</div>';
+  return `${head('薬の設定')}
+    <div class="section-title" style="margin-top:8px">いつもの薬</div>
+    <div class="card">${meds || '<div class="empty">まだありません</div>'}<div style="margin-top:8px"><button class="btn ghost block" data-act="addmed">＋ 薬を追加</button></div></div>
+    <div class="section-title">舌下タイマーの手順</div>
+    <div class="card">${steps}<div style="margin-top:8px"><button class="btn ghost block" data-act="addstep">＋ 手順を追加</button></div>
+    <div style="margin-top:6px"><label class="switch"><input type="checkbox" data-c="combined" ${p.combined ? 'checked' : ''}>舌下の薬を続けて飲む</label>
+    <p class="small-note">ONにすると、舌下の薬が1枚にまとまります。</p></div></div>
+    <div class="section-title">続けて飲む臨時の薬</div>
+    <p class="section-note">終了した処方も残ります。</p><div class="card">${temps}</div>
+    <div class="section-title">そのほか</div>
+    <div class="card"><div class="two"><button class="btn ghost" data-act="testsound">音を試す</button><button class="btn danger" data-act="logout">ログアウト</button></div></div>`;
+}
+
+/* ========== 臨時の服用シート ========== */
+function openExtraSheet(date) {
+  const names = new Set();
+  Object.values(S.days).forEach((d) => (d.extras || []).forEach((e) => names.add(e.name)));
+  S.profile.temps.forEach((t) => names.add(t.name));
+  const d0 = new Date();
+  const sheet = { mode: 'once' };
+  $('#overlay').innerHTML = `<div class="scrim" id="scrim"><form class="sheet" id="xform" role="dialog" aria-modal="true" aria-label="臨時の服用を記録">
+    <h3>臨時の服用を記録<button type="button" class="icon-btn" data-act="closesheet" aria-label="閉じる">${I.x}</button></h3>
+    <div class="field"><label for="xn">薬の名前</label><input type="text" id="xn" list="xnames" required maxlength="40" autocomplete="off" placeholder="例: 風邪薬"><datalist id="xnames">${[...names].map((n) => `<option value="${esc(n)}">`).join('')}</datalist></div>
+    <div class="field"><div class="seg" role="group" aria-label="記録のしかた"><button type="button" data-act="xmode" data-v="once" aria-pressed="true">今回だけ</button><button type="button" data-act="xmode" data-v="multi" aria-pressed="false">何日か続ける</button></div></div>
+    <div id="xonce"><div class="two field"><div><label class="lab" for="xd" style="font-size:13px;font-weight:700;color:var(--sub)">日付</label><input type="date" id="xd" value="${date}"></div>
+      <div><label class="lab" for="xt" style="font-size:13px;font-weight:700;color:var(--sub)">時刻</label><input type="time" id="xt" value="${pad(d0.getHours())}:${pad(d0.getMinutes())}" style="width:100%"></div></div></div>
+    <div id="xmulti" hidden><div class="field"><div class="lab">飲むタイミング</div><div class="checks">${TIMINGS.map((t, i) => `<label class="chk"><input type="checkbox" name="xtm" value="${i}" ${i === 0 ? 'checked' : ''}><span>${t.k}</span></label>`).join('')}</div></div>
+      <div class="two field"><div><label class="lab" for="xs" style="font-size:13px;font-weight:700;color:var(--sub)">飲み始め</label><input type="date" id="xs" value="${date < todayStr() ? date : todayStr()}"></div>
+      <div><label class="lab" for="xdays" style="font-size:13px;font-weight:700;color:var(--sub)">日数</label><input type="number" id="xdays" min="1" max="60" value="5" inputmode="numeric" style="width:100%"></div></div></div>
+    <div class="field"><label for="xm">メモ(任意)</label><textarea id="xm" maxlength="100" placeholder="例: 熱があるとき"></textarea></div>
+    <button class="btn block" type="submit">記録する</button></form></div>`;
+  $('#xform').dataset.mode = sheet.mode;
+  setTimeout(() => $('#xn')?.focus(), 50);
+}
+function closeSheet() { $('#overlay').innerHTML = ''; }
+function submitExtra(e) {
+  e.preventDefault();
+  const f = e.target, name = $('#xn').value.trim(), memo = $('#xm').value.trim();
+  if (!name) return;
+  if (f.dataset.mode === 'once') {
+    const date = $('#xd').value || todayStr(), time = $('#xt').value || '00:00';
+    ensureDay(date).extras.push({ id: uid(), name, at: `${date}T${time}`, memo });
+    saveDay(date);
+  } else {
+    const timings = [...f.querySelectorAll('input[name=xtm]:checked')].map((c) => Number(c.value));
+    if (!timings.length) { toast('飲むタイミングを選んでください'); return; }
+    const start = $('#xs').value || todayStr(), n = Math.max(1, Math.min(60, Number($('#xdays').value) || 1));
+    S.profile.temps.push({ id: uid(), name, timings, start, end: addDays(start, n - 1), memo });
+    saveProfile();
+    if (!S.profile.since || start < S.profile.since) S.profile.since = start;
+  }
+  closeSheet(); render();
+}
+function toast(msg) {
+  const t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.setAttribute('role', 'status');
+  document.body.appendChild(t); setTimeout(() => t.remove(), 2200);
+}
+
+/* ========== 音 ========== */
+let actx = null;
+function ensureAudio() {
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+  } catch { /* 音なしで続ける */ }
+}
+function beep(times = 1, freq = 880) {
+  if (!actx) return;
+  for (let i = 0; i < times; i++) {
+    const t0 = actx.currentTime + i * 0.35, o = actx.createOscillator(), g = actx.createGain();
+    o.type = 'sine'; o.frequency.value = freq; o.connect(g); g.connect(actx.destination);
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+    o.start(t0); o.stop(t0 + 0.3);
+  }
+}
+document.addEventListener('pointerdown', ensureAudio, { passive: true });
+
+/* ========== 舌下タイマー ========== */
+let T = null, wake = null, tickId = 0, lastIdx = -1;
+const TKEY = 'kl_timer';
+function loadTimer() { try { const v = JSON.parse(localStorage.getItem(TKEY)); if (v && v.start && Array.isArray(v.steps)) T = v; } catch { /* なし */ } }
+function persistTimer() { try { T ? localStorage.setItem(TKEY, JSON.stringify(T)) : localStorage.removeItem(TKEY); } catch { /* 保存できなくても動く */ } }
+function startTimer() {
+  const steps = S.profile.steps.filter((s) => s.min > 0);
+  if (!steps.length) { toast('タイマーの手順がありません'); return; }
+  ensureAudio();
+  T = { start: Date.now(), steps: steps.map((s) => ({ label: s.label, min: s.min })), finished: false };
+  lastIdx = 0; persistTimer(); acquireWake(); runTick(); renderTimer();
+}
+function stopTimer() { T = null; persistTimer(); releaseWake(); clearInterval(tickId); tickId = 0; renderTimer(); }
+async function acquireWake() { try { if ('wakeLock' in navigator && !wake && T && !T.finished) { wake = await navigator.wakeLock.request('screen'); wake.addEventListener('release', () => { wake = null; }); } } catch { /* 非対応でも続ける */ } }
+function releaseWake() { try { wake?.release(); } catch { /* なし */ } wake = null; }
+function timerCalc() {
+  const el = (Date.now() - T.start) / 1000; let acc = 0;
+  for (let i = 0; i < T.steps.length; i++) {
+    const len = T.steps[i].min * 60;
+    if (el < acc + len) return { idx: i, rem: acc + len - el, len, done: false };
+    acc += len;
+  }
+  return { idx: T.steps.length, rem: 0, len: 0, done: true };
+}
+const mmss = (s) => { s = Math.ceil(s); return `${Math.floor(s / 60)}:${pad(s % 60)}`; };
+function runTick() {
+  if (!T) return;
+  if (!tickId) tickId = setInterval(runTick, 250);
+  const c = timerCalc();
+  if (c.done) {
+    if (!T.finished) { T.finished = true; persistTimer(); releaseWake(); beep(3, 1040); renderTimer(); }
+    return;
+  }
+  if (c.idx !== lastIdx) { if (lastIdx >= 0 && lastIdx < c.idx) beep(1); lastIdx = c.idx; renderTimer(); return; }
+  const tm = $('#tm'), fg = $('#tfg');
+  if (tm) tm.textContent = mmss(c.rem);
+  if (fg) { const r = 40, cc = 2 * Math.PI * r; fg.setAttribute('stroke-dashoffset', (cc * (1 - (1 - c.rem / c.len))).toFixed(2)); }
+}
+function renderTimer() {
+  const box = $('#timer');
+  document.body.classList.toggle('timer-on', !!T);
+  if (!T) { box.innerHTML = ''; return; }
+  const c = T.finished ? { idx: T.steps.length, rem: 0, len: 1 } : timerCalc();
+  const fin = c.idx >= T.steps.length, step = T.steps[c.idx];
+  const frac = fin ? 1 : 1 - c.rem / c.len;
+  box.innerHTML = `<div class="tcard" role="timer" aria-label="舌下タイマー">
+    <div class="tmain"><div class="tring">${ringSvg(frac).replace('class="fg"', 'class="fg" id="tfg"')}<div class="tm" id="tm">${fin ? '0:00' : mmss(c.rem)}</div></div>
+    <div class="tname" aria-live="polite">${fin ? 'おわり。飲み物を飲んでOK' : esc(step.label)}</div></div>
+    <ol class="tsteps">${T.steps.map((s, i) => `<li class="${i < c.idx ? 'past' : i === c.idx ? 'now' : ''}"><span>${i + 1}.</span><span>${esc(s.label)}</span><span class="mono">${s.min}分</span></li>`).join('')}</ol>
+    <button class="btn" data-act="stoptimer">${fin ? 'とじる' : '中止する'}</button></div>`;
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') { if (T && !T.finished) { acquireWake(); lastIdx = -2; const c = timerCalc(); lastIdx = c.idx; runTick(); renderTimer(); } checkOverdue(); }
+});
+
+/* ========== リマインド ========== */
+function checkOverdue() {
+  if (!S.ready) return;
+  const od = overdueList(), key = od.map((i) => i.keys[0]).join('|');
+  const fresh = od.filter((i) => !remindShown.has(i.keys[0]));
+  if (fresh.length) { fresh.forEach((i) => remindShown.add(i.keys[0])); beep(2, 740); }
+  if (key !== overdueKey) { overdueKey = key; if (S.tab === 'today' && !$('#overlay').firstChild) render(); }
+}
+setInterval(checkOverdue, 30000);
+
+/* ========== 操作 ========== */
+function take(keys, date) {
+  const d = ensureDay(date), today = date === todayStr();
+  const items = itemsFor(date);
+  keys.forEach((k) => {
+    if (d.taken[k]) return;
+    const it = items.find((x) => x.keys.includes(k));
+    d.taken[k] = { at: today ? nowAt() : `${date}T${it ? it.time : '00:00'}`, name: medName(k) };
+  });
+  saveDay(date);
+}
+function move(arr, i, j) { if (j < 0 || j >= arr.length) return; [arr[i], arr[j]] = [arr[j], arr[i]]; }
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-act]'); if (!b) { if (e.target.id === 'scrim') closeSheet(); return; }
+  const a = b.dataset.act, p = S.profile, i = Number(b.dataset.i), d = b.dataset.d;
+  const keys = (b.dataset.k || '').split(',').filter(Boolean);
+  switch (a) {
+    case 'tab': S.tab = b.dataset.v; render(); window.scrollTo(0, 0); return;
+    case 'take': take(keys, d); render(); return;
+    case 'start': take(keys, d); startTimer(); render(); return;
+    case 'untake': { const day = ensureDay(d); keys.forEach((k) => delete day.taken[k]); saveDay(d); render(); return; }
+    case 'goto': document.getElementById(b.dataset.id)?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion:reduce)').matches ? 'auto' : 'smooth', block: 'center' }); return;
+    case 'addextra': openExtraSheet(d); return;
+    case 'closesheet': closeSheet(); return;
+    case 'xmode': {
+      const f = $('#xform'); f.dataset.mode = b.dataset.v;
+      f.querySelectorAll('.seg button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      $('#xonce').hidden = b.dataset.v !== 'once'; $('#xmulti').hidden = b.dataset.v === 'once'; return;
+    }
+    case 'delextra': { const day = ensureDay(d); const ex = day.extras.find((x) => x.id === b.dataset.id); if (ex && confirm(`「${ex.name}」の記録を消しますか?`)) { day.extras = day.extras.filter((x) => x.id !== ex.id); saveDay(d); render(); } return; }
+    case 'month': { const [y, m] = S.calMonth.split('-').map(Number); const n = new Date(y, m - 1 + Number(b.dataset.v), 1); S.calMonth = `${n.getFullYear()}-${pad(n.getMonth() + 1)}`; S.calSel = null; render(); return; }
+    case 'sel': S.calSel = S.calSel === d ? null : d; render(); if (S.calSel) setTimeout(() => document.querySelector('.section-title')?.scrollIntoView({ block: 'nearest' }), 0); return;
+    case 'addmed': p.meds.push({ id: 'm_' + uid(), name: '', kind: 'pill', time: '08:00', active: true }); saveProfile(); render(); return;
+    case 'delmed': if (confirm(`「${p.meds[i].name || 'この薬'}」を削除しますか?(過去の記録は残ります)`)) { p.meds.splice(i, 1); saveProfile(); render(); } return;
+    case 'addstep': p.steps.push({ label: '', min: 1 }); saveProfile(); render(); return;
+    case 'delstep': p.steps.splice(i, 1); saveProfile(); render(); return;
+    case 'stepup': move(p.steps, i, i - 1); saveProfile(); render(); return;
+    case 'stepdown': move(p.steps, i, i + 1); saveProfile(); render(); return;
+    case 'deltemp': if (confirm(`「${p.temps[i].name}」を削除しますか?`)) { p.temps.splice(i, 1); saveProfile(); render(); } return;
+    case 'stoptimer': stopTimer(); return;
+    case 'testsound': ensureAudio(); beep(1); setTimeout(() => beep(3, 1040), 900); return;
+    case 'logout': if (confirm('ログアウトしますか?')) fetch('/api/logout', { method: 'POST' }).finally(() => { stopTimer(); location.reload(); }); return;
+  }
+});
+document.addEventListener('submit', (e) => { if (e.target.id === 'xform') submitExtra(e); });
+document.addEventListener('change', (e) => {
+  const t = e.target, p = S.profile; if (!p) return;
+  if (t.dataset.f) {
+    const m = p.meds[Number(t.dataset.i)], f = t.dataset.f;
+    m[f] = f === 'active' ? t.checked : t.value;
+    if (f === 'time' && !t.value) m.time = '08:00';
+    saveProfile(); if (f === 'active') render();
+  } else if (t.dataset.s) {
+    const s = p.steps[Number(t.dataset.i)];
+    if (t.dataset.s === 'min') { const v = parseFloat(t.value); s.min = v > 0 ? v : 1; t.value = s.min; } else s.label = t.value;
+    saveProfile();
+  } else if (t.dataset.c === 'combined') { p.combined = t.checked; saveProfile(); render(); }
+});
+
+/* ========== 起動 ========== */
+async function boot() {
+  try {
+    const r = await fetch('/api/state', { credentials: 'same-origin' });
+    if (r.status === 401) { location.reload(); return; }
+    if (!r.ok) throw new Error();
+    const data = await r.json();
+    S.days = data.days || {};
+    if (data.profile) {
+      S.profile = data.profile;
+      const dp = DEFAULT_PROFILE();
+      S.profile.since = S.profile.since || dp.since;
+    } else { S.profile = DEFAULT_PROFILE(); saveProfile(); }
+    S.ready = true;
+    loadTimer();
+    render();
+    if (T) { if (!T.finished) { acquireWake(); lastIdx = timerCalc().idx; } runTick(); }
+    checkOverdue();
+  } catch {
+    $('#app').innerHTML = '<div class="loading">読み込めませんでした。<br><button class="btn" style="margin-top:16px" onclick="location.reload()">もう一度</button></div>';
+  }
+}
+boot();
+</script>
+</body>
+</html>
