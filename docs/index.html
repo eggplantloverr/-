@@ -672,6 +672,16 @@ document.addEventListener('click', (e) => {
 });
 document.addEventListener('change', (e) => { if (e.target.id === 'impfile' && e.target.files[0]) { importBackup(e.target.files[0]); e.target.value = ''; } });
 document.addEventListener('submit', (e) => { if (e.target.id === 'xform') submitExtra(e); });
+// iPhoneは、ボタンを押しても入力欄の「change」が来ないことがある。入力した瞬間に保存する
+document.addEventListener('input', (e) => {
+  const t = e.target, p = S.profile; if (!p) return;
+  if (t.dataset.f === 'name') { p.meds[Number(t.dataset.i)].name = t.value; persist(); }
+  else if (t.dataset.f === 'time' && t.value) { p.meds[Number(t.dataset.i)].time = t.value; persist(); }
+  else if (t.dataset.s === 'label') { p.steps[Number(t.dataset.i)].label = t.value; persist(); }
+});
+// アプリを閉じる・切り替えるときにも、念のためもう一度保存
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && S.ready) persist(); });
+window.addEventListener('pagehide', () => { if (S.ready) persist(); });
 document.addEventListener('change', (e) => {
   const t = e.target, p = S.profile; if (!p) return;
   if (t.dataset.f) {
