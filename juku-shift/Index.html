@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>シフト管理</title>
+<style>
+:root {
+  --bg: #f6f7fb; --card: #fff; --ink: #1f2430; --sub: #667085; --line: #e2e5ee;
+  --accent: #4f46e5; --accent-weak: #eef0ff; --ok: #1a8f5a; --ok-weak: #e4f6ec;
+  --warn: #c76a00; --warn-weak: #fff1de; --danger: #c9302c; --lesson: #7c3aed; --lesson-weak: #ede4ff;
+  --sat: #2f6fdb; --sun: #d6453d;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.6 "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, system-ui, sans-serif; }
+button, input, select, textarea { font: inherit; color: inherit; }
+h1, h2, h3 { margin: 0; line-height: 1.35; }
+h2 { font-size: 18px; } h3 { font-size: 15px; }
+.hidden { display: none !important; }
+.muted { color: var(--sub); } .small { font-size: 12px; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.spacer { flex: 1; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+
+/* ボタン */
+.btn { border: 1px solid var(--line); background: #fff; border-radius: 8px; padding: 6px 14px; min-height: 34px; cursor: pointer; white-space: nowrap; }
+.btn:hover { background: #f1f2f7; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { background: #4338ca; }
+.btn.danger { color: var(--danger); border-color: #efc1bf; }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+input[type=text], input[type=email], input[type=password], input[type=date], input[type=time], input[type=number], select, textarea {
+  border: 1px solid #cfd4e2; border-radius: 8px; padding: 6px 10px; min-height: 34px; background: #fff; max-width: 100%;
+}
+input:focus, select:focus, textarea:focus, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--sub); }
+.field > input, .field > select, .field > textarea { font-size: 14px; color: var(--ink); }
+
+/* 画面の枠 */
+.top { position: sticky; top: 0; z-index: 20; background: #fff; border-bottom: 1px solid var(--line); }
+.top-in { max-width: 1360px; margin: 0 auto; padding: 10px 20px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.brand { font-weight: 700; font-size: 17px; color: var(--accent); }
+.badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: var(--accent-weak); color: var(--accent); }
+.badge.ok { background: var(--ok-weak); color: var(--ok); }
+.badge.warn { background: var(--warn-weak); color: var(--warn); }
+.badge.gray { background: #eceef4; color: var(--sub); }
+.tabs { max-width: 1360px; margin: 0 auto; padding: 0 20px; display: flex; gap: 4px; }
+.tab { border: 0; background: none; padding: 10px 16px; cursor: pointer; border-bottom: 3px solid transparent; color: var(--sub); font-weight: 600; }
+.tab[aria-selected=true] { color: var(--accent); border-bottom-color: var(--accent); }
+main { max-width: 1360px; margin: 0 auto; padding: 20px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+.monthnav { display: flex; align-items: center; gap: 6px; }
+.monthnav b { min-width: 96px; text-align: center; font-size: 16px; }
+.notice { padding: 10px 14px; border-radius: 8px; background: var(--accent-weak); }
+.notice.warn { background: var(--warn-weak); color: #7a4300; }
+.notice.ok { background: var(--ok-weak); color: #0f5e3a; }
+
+/* ログイン */
+.login { max-width: 380px; margin: 12vh auto 0; }
+.login .card { display: flex; flex-direction: column; gap: 14px; padding: 24px; }
+.err { color: var(--danger); min-height: 1.4em; font-size: 13px; }
+
+/* 表 */
+table.t { border-collapse: collapse; width: 100%; }
+table.t th, table.t td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+table.t th { font-size: 12px; color: var(--sub); font-weight: 600; background: #fafbfd; position: sticky; top: 0; }
+table.t tr.dayrow td { background: #f3f4fa; font-weight: 700; }
+
+/* 空き時間グリッド */
+.gridwrap { overflow-x: auto; padding-bottom: 6px; }
+table.grid { border-collapse: separate; border-spacing: 0; user-select: none; }
+table.grid th, table.grid td { border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: center; }
+table.grid thead th { background: #fafbfd; font-size: 12px; padding: 4px 0; min-width: 34px; cursor: pointer; border-top: 1px solid var(--line); }
+table.grid thead th.corner { cursor: default; min-width: 56px; border-left: 1px solid var(--line); }
+table.grid tbody th { background: #fafbfd; font-size: 12px; padding: 0 8px; cursor: pointer; border-left: 1px solid var(--line); white-space: nowrap; }
+table.grid thead th small { display: block; font-weight: 400; }
+table.grid th.sat { color: var(--sat); } table.grid th.sun { color: var(--sun); }
+table.grid td { height: 32px; min-width: 34px; cursor: pointer; font-size: 15px; color: var(--accent); }
+table.grid td.we { background: #fbfbfe; }
+table.grid td.on { background: var(--accent-weak); font-weight: 700; }
+table.grid td.on::after { content: "○"; }
+table.grid td.lesson { background: var(--lesson-weak); color: var(--lesson); font-size: 11px; font-weight: 700; }
+table.grid td.lesson::after { content: "授"; }
+table.grid.ro td { cursor: default; }
+table.grid td.out { background: repeating-linear-gradient(45deg, #f3f3f6, #f3f3f6 4px, #fff 4px, #fff 8px); cursor: default; }
+.legend { display: flex; gap: 16px; font-size: 12px; color: var(--sub); align-items: center; }
+.legend i { display: inline-block; width: 16px; height: 16px; border-radius: 4px; vertical-align: -3px; margin-right: 4px; border: 1px solid var(--line); }
+
+/* マッチング */
+.split { display: grid; grid-template-columns: 300px 1fr; gap: 18px; align-items: start; }
+.slist { display: flex; flex-direction: column; gap: 6px; max-height: calc(100vh - 220px); overflow: auto; }
+.sitem { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 10px 12px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.sitem:hover { background: #f6f7ff; }
+.sitem[aria-current=true] { border-color: var(--accent); background: var(--accent-weak); }
+.sitem b { font-size: 15px; }
+.req { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: #fff; display: flex; flex-direction: column; gap: 8px; }
+.req.done { background: var(--ok-weak); border-color: #bfe5cf; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.chip { background: #eceef4; border-radius: 6px; padding: 1px 8px; font-size: 13px; }
+.chip.main { background: var(--accent-weak); color: var(--accent); font-weight: 700; }
+.cands { display: flex; flex-direction: column; gap: 6px; }
+.cand { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; border: 1px dashed #c9cdea; border-radius: 8px; padding: 6px 10px; background: #fcfcff; }
+.cand b { min-width: 72px; }
+.reqrow { display: grid; grid-template-columns: 100px 130px 150px 290px 100px 170px minmax(120px,1fr) auto; gap: 8px; align-items: end; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.reqrow .row { flex-wrap: nowrap; }
+.reqrow input[type=time] { width: 124px; padding: 6px 6px; }
+.reqrow.done { border-color: #bfe5cf; background: #f7fcf9; }
+
+/* モーダル */
+.overlay { position: fixed; inset: 0; background: rgba(20, 24, 40, .45); display: flex; align-items: flex-start; justify-content: center; padding: 6vh 16px; z-index: 50; overflow: auto; }
+.modal { background: #fff; border-radius: 14px; width: 100%; max-width: 560px; padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+.modal.wide { max-width: 720px; }
+.formgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.formgrid .full { grid-column: 1 / -1; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--ink); font-size: 14px; }
+.checks label { display: inline-flex; gap: 4px; align-items: center; cursor: pointer; }
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: #1f2430; color: #fff; padding: 10px 18px; border-radius: 10px; z-index: 80; max-width: 80vw; }
+.toast.err { background: var(--danger); }
+
+.printtitle { display: none; }
+@media print {
+  .noprint, .top, .tabs { display: none !important; }
+  .printtitle { display: block; font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  body { background: #fff; }
+  main { padding: 0; max-width: none; }
+  .card { border: 0; padding: 0; }
+}
+@media (max-width: 1100px) { .split { grid-template-columns: 1fr; } .reqrow { grid-template-columns: 1fr 1fr; } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+'use strict';
+/* ========== 小さな道具 ========== */
+function h(tag, attrs) {
+  var e = document.createElement(tag), after = null;
+  if (attrs) Object.keys(attrs).forEach(function (k) {
+    var v = attrs[k];
+    if (v === null || v === undefined || v === false) return;
+    if (k === 'class') e.className = v;
+    else if (k.slice(0, 2) === 'on') e.addEventListener(k.slice(2), v);
+    else if (k === 'value') after = v;
+    else if (k === 'checked' || k === 'disabled' || k === 'readOnly') e[k] = !!v;
+    else e.setAttribute(k, v === true ? '' : v);
+  });
+  for (var i = 2; i < arguments.length; i++) add(e, arguments[i]);
+  if (after !== null) e.value = after;
+  return e;
+}
+function add(e, c) {
+  if (c === null || c === undefined || c === false) return;
+  if (Array.isArray(c)) { c.forEach(function (x) { add(e, x); }); return; }
+  e.appendChild(c.nodeType ? c : document.createTextNode(String(c)));
+}
+function opts(list, value) { return list.map(function (o) { var v = o.v !== undefined ? o.v : o; var l = o.l !== undefined ? o.l : o; return h('option', { value: v }, l); }); }
+function select(list, value, onchange, extra) { var s = h('select', Object.assign({ onchange: onchange }, extra || {}), opts(list)); s.value = value; return s; }
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+var DOW = ['日', '月', '火', '水', '木', '金', '土'];
+function dowOf(d) { var m = d.split('-'); return new Date(Date.UTC(+m[0], +m[1] - 1, +m[2])).getUTCDay(); }
+function fmtDate(d) { return (+d.slice(5, 7)) + '/' + (+d.slice(8, 10)) + '(' + DOW[dowOf(d)] + ')'; }
+function fmtMonth(m) { return m.slice(0, 4) + '年' + (+m.slice(5)) + '月'; }
+function daysOf(m) { var y = +m.slice(0, 4), mo = +m.slice(5), n = new Date(y, mo, 0).getDate(), a = []; for (var i = 1; i <= n; i++) a.push(m + '-' + pad(i)); return a; }
+function addMonth(m, k) { var y = +m.slice(0, 4), mo = +m.slice(5) - 1 + k; return new Date(y, mo, 1).getFullYear() + '-' + pad(new Date(y, mo, 1).getMonth() + 1); }
+function toMin(t) { return +t.slice(0, 2) * 60 + +t.slice(3, 5); }
+function fmtMin(n) { return pad(Math.floor(n / 60)) + ':' + pad(n % 60); }
+function today() { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function weekStart(date) { var m = date.split('-'), d = new Date(Date.UTC(+m[0], +m[1] - 1, +m[2])); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); }
+function toast(msg, isErr) {
+  var t = h('div', { class: 'toast' + (isErr ? ' err' : ''), role: 'status' }, msg);
+  document.body.appendChild(t);
+  setTimeout(function () { t.remove(); }, isErr ? 5000 : 2200);
+}
+
+/* ========== 状態と通信 ========== */
+var S = { token: null, me: null, cfg: null, grades: [], teachers: [], month: today().slice(0, 7), data: null, tab: 'match', sel: null, dirty: false, tsel: null };
+var app = document.getElementById('app');
+
+function saveToken(t) { try { if (t) sessionStorage.setItem('shift_token', t); else sessionStorage.removeItem('shift_token'); } catch (e) { /* ignore */ } }
+function loadToken() { try { return sessionStorage.getItem('shift_token'); } catch (e) { return null; } }
+
+function call(action, payload) {
+  return new Promise(function (resolve) {
+    try {
+      google.script.run
+        .withSuccessHandler(function (r) { if (r && r.auth && S.token) { toLogin('もう一度ログインしてください'); } resolve(r || { ok: false, error: '応答がありません' }); })
+        .withFailureHandler(function () { resolve({ ok: false, error: '通信に失敗しました。もう一度試してください' }); })
+        .api(action, S.token, payload || {});
+    } catch (e) { resolve({ ok: false, error: '通信に失敗しました' }); }
+  });
+}
+async function act(action, payload, okMsg) {
+  var r = await call(action, payload);
+  if (!r.ok) { toast(r.error, true); return null; }
+  if (okMsg) toast(okMsg);
+  return r;
+}
+
+/* ========== ログイン ========== */
+function toLogin(msg) {
+  S.token = null; S.me = null; S.data = null; S.dirty = false; saveToken(null);
+  document.title = 'シフト管理';
+  var err = h('div', { class: 'err', role: 'alert' }, msg || '');
+  var email = h('input', { type: 'email', autocomplete: 'username', required: true });
+  var pw = h('input', { type: 'password', autocomplete: 'current-password', required: true });
+  var btn = h('button', { class: 'btn primary', type: 'submit' }, 'ログイン');
+  var form = h('form', { class: 'card', onsubmit: async function (ev) {
+    ev.preventDefault(); btn.disabled = true; err.textContent = '';
+    var r = await call('login', { email: email.value, password: pw.value });
+    btn.disabled = false;
+    if (!r.ok) { err.textContent = r.error; pw.value = ''; return; }
+    S.token = r.data.token; saveToken(S.token);
+    start();
+  } },
+    h('h2', null, '個別指導塾 シフト管理'),
+    h('div', { class: 'muted small' }, '配られたメールアドレスとパスワードでログインしてください。'),
+    h('label', { class: 'field' }, 'メールアドレス', email),
+    h('label', { class: 'field' }, 'パスワード', pw),
+    err, btn);
+  app.replaceChildren(h('div', { class: 'login' }, form));
+  email.focus();
+}
+
+async function start() {
+  var r = await call('me');
+  if (!r.ok) { toLogin(); return; }
+  S.me = r.data.user; S.cfg = r.data.settings; S.grades = r.data.grades; S.teachers = r.data.teachers || [];
+  S.tab = S.me.role === 'admin' ? 'match' : 'main';
+  await loadMonth();
+}
+
+async function loadMonth() {
+  var r = await call(S.me.role === 'admin' ? 'board' : 'mine', { month: S.month });
+  if (!r.ok) { if (!r.auth) toast(r.error, true); return; }
+  S.data = r.data; S.dirty = false;
+  if (S.me.role === 'admin') S.cfg = r.data.settings;
+  render();
+}
+
+/* ========== 共通の枠 ========== */
+function render() {
+  var role = S.me.role;
+  var isAdmin = role === 'admin';
+  var tabs = isAdmin ? [['match', 'マッチング'], ['sched', '時間割'], ['teachers', 'アルバイトの空き'], ['users', 'ユーザー'], ['settings', '設定']] : [];
+  var monthTabs = !isAdmin || ['match', 'sched', 'teachers', 'settings'].indexOf(S.tab) >= 0;
+  var top = h('div', { class: 'top noprint' },
+    h('div', { class: 'top-in' },
+      h('span', { class: 'brand' }, 'シフト管理'),
+      monthTabs ? h('div', { class: 'monthnav' },
+        h('button', { class: 'btn', 'aria-label': '前の月', onclick: function () { gotoMonth(-1); } }, '◀'),
+        h('b', null, fmtMonth(S.month)),
+        h('button', { class: 'btn', 'aria-label': '次の月', onclick: function () { gotoMonth(1); } }, '▶')) : null,
+      h('span', { class: 'spacer' }),
+      h('span', null, S.me.name), h('span', { class: 'badge' }, { admin: '管理者', teacher: 'アルバイト', parent: '保護者' }[role]),
+      h('button', { class: 'btn', onclick: pwModal }, 'パスワード変更'),
+      h('button', { class: 'btn', onclick: async function () { await call('logout'); toLogin(); } }, 'ログアウト')),
+    tabs.length ? h('div', { class: 'tabs', role: 'tablist' }, tabs.map(function (t) {
+      return h('button', { class: 'tab', role: 'tab', 'aria-selected': S.tab === t[0], onclick: function () { S.tab = t[0]; render(); } }, t[1]);
+    })) : null);
+  var body = h('main', null);
+  if (role === 'teacher') body.appendChild(teacherView());
+  else if (role === 'parent') body.appendChild(parentView());
+  else body.appendChild({ match: matchView, sched: schedView, teachers: teachersView, users: usersView, settings: settingsView }[S.tab]());
+  app.replaceChildren(top, body);
+  document.title = 'シフト管理 - ' + fmtMonth(S.month);
+}
+async function gotoMonth(k) {
+  if (S.dirty && !confirm('保存していない変更があります。破棄して移動しますか?')) return;
+  S.month = addMonth(S.month, k); await loadMonth();
+}
+
+function deadlineNote(deadline, locked) {
+  if (!deadline) return h('div', { class: 'notice' }, 'この月の提出締切はまだ決まっていません。');
+  if (locked) return h('div', { class: 'notice warn' }, '締切(' + fmtDate(deadline) + ')を過ぎているため、変更できません。変更したいときは管理者に連絡してください。');
+  return h('div', { class: 'notice' }, '提出の締切: ' + fmtDate(deadline) + ' まで');
+}
+
+/* ---------- モーダル ---------- */
+function modal(title, body, buttons, wide) {
+  var ov = h('div', { class: 'overlay', onmousedown: function (e) { if (e.target === ov) close(); } });
+  function close() { ov.remove(); document.removeEventListener('keydown', onkey); }
+  function onkey(e) { if (e.key === 'Escape') close(); }
+  document.addEventListener('keydown', onkey);
+  ov.appendChild(h('div', { class: 'modal' + (wide ? ' wide' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': title },
+    h('h2', null, title), body, h('div', { class: 'row' }, buttons(close))));
+  document.body.appendChild(ov);
+  var f = ov.querySelector('input,select,textarea'); if (f) f.focus();
+  return close;
+}
+
+function pwModal() {
+  var o = h('input', { type: 'password', autocomplete: 'current-password' });
+  var n = h('input', { type: 'password', autocomplete: 'new-password' });
+  var err = h('div', { class: 'err', role: 'alert' });
+  modal('パスワード変更', h('div', { class: 'stack' },
+    h('label', { class: 'field' }, 'いまのパスワード', o),
+    h('label', { class: 'field' }, '新しいパスワード(8文字以上)', n), err), function (close) {
+    return [h('button', { class: 'btn primary', onclick: async function () {
+      var r = await call('changePassword', { oldPassword: o.value, newPassword: n.value });
+      if (!r.ok) { err.textContent = r.error; return; }
+      close(); toast('パスワードを変更しました');
+    } }, '変更する'), h('button', { class: 'btn', onclick: close }, 'キャンセル')];
+  });
+}
+
+/* ========== 空き時間グリッド ========== */
+var gridUp = null;
+function lessonCovers(l, hour) { return toMin(l.start) < (hour + 1) * 60 && toMin(l.end) > hour * 60; }
+
+function availGrid(o) {
+  // o: { month, slots:Set, lessons:[], editable, onChange }
+  var days = daysOf(o.month), hf = S.cfg.hourFrom, ht = S.cfg.hourTo, hours = [];
+  for (var x = hf; x < ht; x++) hours.push(x);
+  var key = function (d, hr) { return d + ':' + hr; };
+  var cells = {};
+  function paint(d, hr, on) {
+    var k = key(d, hr);
+    if (on) o.slots.add(k); else o.slots.delete(k);
+    cells[k].classList.toggle('on', on);
+  }
+  function changed() { if (o.onChange) o.onChange(); }
+  var thead = h('tr', null, h('th', { class: 'corner' }, ''), days.map(function (d) {
+    var w = dowOf(d);
+    return h('th', { class: w === 0 ? 'sun' : w === 6 ? 'sat' : '', title: o.editable ? 'クリックでこの日を全部切り替え' : '', onclick: function () {
+      if (!o.editable) return;
+      var all = hours.every(function (hr) { return o.slots.has(key(d, hr)); });
+      hours.forEach(function (hr) { paint(d, hr, !all); }); changed();
+    } }, +d.slice(8), h('small', null, DOW[w]));
+  }));
+  var tbody = hours.map(function (hr) {
+    return h('tr', null,
+      h('th', { title: o.editable ? 'クリックでこの時間を全部切り替え' : '', onclick: function () {
+        if (!o.editable) return;
+        var all = days.every(function (d) { return o.slots.has(key(d, hr)); });
+        days.forEach(function (d) { paint(d, hr, !all); }); changed();
+      } }, pad(hr) + ':00'),
+      days.map(function (d) {
+        var w = dowOf(d), k = key(d, hr);
+        var td = h('td', { class: (w === 0 || w === 6 ? 'we ' : '') + (o.slots.has(k) ? 'on ' : '') + ((o.lessons || []).some(function (l) { return l.date === d && lessonCovers(l, hr); }) ? 'lesson' : ''),
+          'data-d': d, 'data-h': hr });
+        cells[k] = td; return td;
+      }));
+  });
+  var table = h('table', { class: 'grid' + (o.editable ? '' : ' ro'), 'aria-label': '空き時間(' + fmtMonth(o.month) + ')' }, h('thead', null, thead), h('tbody', null, tbody));
+  if (o.editable) {
+    var painting = null;
+    table.addEventListener('mousedown', function (e) {
+      var td = e.target.closest('td[data-d]'); if (!td) return;
+      e.preventDefault();
+      painting = !o.slots.has(key(td.dataset.d, +td.dataset.h));
+      paint(td.dataset.d, +td.dataset.h, painting); changed();
+    });
+    table.addEventListener('mouseover', function (e) {
+      if (painting === null) return;
+      var td = e.target.closest('td[data-d]'); if (!td) return;
+      if (o.slots.has(key(td.dataset.d, +td.dataset.h)) !== painting) { paint(td.dataset.d, +td.dataset.h, painting); changed(); }
+    });
+    if (gridUp) document.removeEventListener('mouseup', gridUp);
+    gridUp = function () { painting = null; };
+    document.addEventListener('mouseup', gridUp);
+  }
+  return h('div', { class: 'gridwrap' }, table);
+}
+function legend() {
+  return h('div', { class: 'legend' }, h('span', null, h('i', { style: 'background:var(--accent-weak)' }), '○ = 入れる'), h('span', null, h('i', { style: 'background:var(--lesson-weak)' }), '授 = 授業が確定'));
+}
+
+/* ========== アルバイト画面 ========== */
+function teacherView() {
+  var d = S.data, slots = new Set(d.slots);
+  var count = h('b', null, slots.size);
+  var dirtyMark = h('span', { class: 'badge warn hidden' }, '未保存の変更があります');
+  var save = h('button', { class: 'btn primary', disabled: d.locked, onclick: async function () {
+    var r = await act('setAvail', { month: S.month, slots: Array.from(slots) }, '保存しました');
+    if (r) { S.dirty = false; dirtyMark.classList.add('hidden'); }
+  } }, '保存する');
+  var grid = availGrid({ month: S.month, slots: slots, lessons: d.lessons, editable: !d.locked, onChange: function () {
+    S.dirty = true; dirtyMark.classList.remove('hidden'); count.textContent = slots.size;
+  } });
+  return h('div', { class: 'stack' },
+    h('div', { class: 'card stack' },
+      h('div', { class: 'row' }, h('h2', null, fmtMonth(S.month) + ' に入れる時間'), h('span', { class: 'spacer' }), dirtyMark, h('span', null, '○の合計 ', count, ' 時間'), save),
+      deadlineNote(d.deadline, d.locked),
+      h('div', { class: 'muted small' }, '入れる時間のマスをクリック(ドラッグでまとめて)。日付や時間の見出しをクリックすると、その日・その時間をまとめて切り替えられます。各マスは「その時刻から1時間」です。'),
+      grid, legend()),
+    lessonListCard(d.lessons, '確定した授業', function (l) { return [l.otherName + (l.otherGrade ? '(' + l.otherGrade + ')' : '')]; }, '生徒'));
+}
+
+function lessonListCard(lessons, title, who, whoLabel) {
+  return h('div', { class: 'card stack' }, h('h2', null, title + ' ', h('span', { class: 'badge gray' }, lessons.length + '件')),
+    lessons.length ? h('table', { class: 't' }, h('thead', null, h('tr', null, ['日付', '時間', whoLabel, '科目', 'メモ'].map(function (x) { return h('th', null, x); }))),
+      h('tbody', null, lessons.map(function (l) {
+        return h('tr', null, h('td', null, fmtDate(l.date)), h('td', null, l.start + '〜' + l.end), h('td', null, who(l)), h('td', null, l.subject), h('td', null, l.note));
+      }))) : h('div', { class: 'muted' }, 'まだ確定した授業はありません。'));
+}
+
+/* ========== 保護者画面 ========== */
+function parentView() {
+  var d = S.data, me = S.me;
+  var reqs = d.requests.map(function (r) { return Object.assign({}, r); });
+  var done = {}; d.lessons.forEach(function (l) { if (l.requestId) done[l.requestId] = l; });
+  var listBox = h('div', { class: 'stack' });
+  var dirtyMark = h('span', { class: 'badge warn hidden' }, '未保存の変更があります');
+  function mark() { S.dirty = true; dirtyMark.classList.remove('hidden'); }
+  function blank() {
+    var t = today(), dd = t.slice(0, 7) === S.month ? t : S.month + '-01';
+    return { id: '', subject: S.cfg.subjects[0], date: dd, from: '16:00', to: '20:00', len: 80, teacherId: '', prio: 1, note: '' };
+  }
+  function draw() {
+    listBox.textContent = '';
+    add(listBox, reqs.length ? reqs.map(function (r, i) { return reqRow(r, i); }) : h('div', { class: 'muted' }, 'まだ希望がありません。「希望を追加」から入力してください。'));
+  }
+  function teacherOpts(r) {
+    var ok = S.teachers.filter(function (t) { return t.subjects.indexOf(r.subject) >= 0 && (!t.grades.length || t.grades.indexOf(me.grade) >= 0); });
+    var list = [{ v: '', l: '指定なし(おまかせ)' }].concat(ok.map(function (t) { return { v: t.id, l: t.name }; }));
+    if (r.teacherId && !ok.some(function (t) { return t.id === r.teacherId; })) r.teacherId = '';
+    return list;
+  }
+  function reqRow(r, i) {
+    var up = function (k, num) { return function (e) { r[k] = num ? +e.target.value : e.target.value; mark(); }; };
+    var tsel = h('select', { onchange: up('teacherId') }, opts(teacherOpts(r))); tsel.value = r.teacherId;
+    var subj = select(S.cfg.subjects, r.subject, function (e) { r.subject = e.target.value; mark(); draw(); });
+    var lenOpts = [40, 50, 60, 70, 80, 90, 100, 120].map(function (n) { return { v: n, l: n + '分' }; });
+    if (!lenOpts.some(function (o) { return o.v === r.len; })) lenOpts.push({ v: r.len, l: r.len + '分' });
+    return h('div', { class: 'reqrow' + (done[r.id] ? ' done' : '') },
+      h('label', { class: 'field' }, '希望の順位', select([{ v: 1, l: '第1希望' }, { v: 2, l: '第2希望' }, { v: 3, l: '第3希望' }], r.prio, up('prio', true))),
+      h('label', { class: 'field' }, '科目', subj),
+      h('label', { class: 'field' }, '日付', h('input', { type: 'date', min: S.month + '-01', max: S.month + '-' + pad(daysOf(S.month).length), value: r.date, onchange: up('date') })),
+      h('div', { class: 'field' }, h('span', null, '入りたい時間帯(この間のどこか)'),
+        h('div', { class: 'row' }, h('input', { type: 'time', step: 300, value: r.from, 'aria-label': '開始', onchange: up('from') }), '〜',
+          h('input', { type: 'time', step: 300, value: r.to, 'aria-label': '終了', onchange: up('to') }))),
+      h('label', { class: 'field' }, '授業の長さ', select(lenOpts, r.len, up('len', true))),
+      h('label', { class: 'field' }, '教わりたい先生', tsel),
+      h('label', { class: 'field' }, 'メモ(任意)', h('input', { type: 'text', maxlength: 200, value: r.note, oninput: up('note') })),
+      h('div', { class: 'stack' }, done[r.id] ? h('span', { class: 'badge ok' }, '確定: ' + done[r.id].start + '〜' + done[r.id].end) : null,
+        h('button', { class: 'btn danger', disabled: d.locked, onclick: function () { reqs.splice(i, 1); mark(); draw(); } }, '削除')));
+  }
+  draw();
+  var addBtn = h('button', { class: 'btn', disabled: d.locked, onclick: function () { reqs.push(blank()); mark(); draw(); } }, '＋ 希望を追加');
+  var saveBtn = h('button', { class: 'btn primary', disabled: d.locked, onclick: async function () {
+    var r = await act('setRequests', { month: S.month, requests: reqs }, '希望を提出しました');
+    if (r) { S.dirty = false; reqs = r.data.requests; dirtyMark.classList.add('hidden'); draw(); }
+  } }, '希望を提出する');
+  return h('div', { class: 'stack' },
+    h('div', { class: 'card stack' },
+      h('div', { class: 'row' }, h('h2', null, fmtMonth(S.month) + ' の授業の希望'), h('span', { class: 'badge' }, me.name + '(' + me.grade + ')'), h('span', { class: 'spacer' }), dirtyMark, addBtn, saveBtn),
+      deadlineNote(d.deadline, d.locked),
+      h('div', { class: 'muted small' }, '日付ごとに、科目・入りたい時間帯・先生を自由に出せます。第1〜第3希望のように複数出して構いません。最終的な日時は管理者が調整して確定します。'),
+      listBox),
+    lessonListCard(d.lessons, '確定した授業', function (l) { return l.otherName; }, '先生'));
+}
+
+/* ========== 管理者: 共通 ========== */
+function uById(id) { return S.data.users.filter(function (u) { return u.id === id; })[0]; }
+function teachersOf() { return S.data.users.filter(function (u) { return u.role === 'teacher'; }); }
+function studentsOf() { return S.data.users.filter(function (u) { return u.role === 'parent'; }); }
+function availHours(tid, date) {
+  return (S.data.avail[tid] || []).filter(function (s) { return s.slice(0, 10) === date; }).map(function (s) { return +s.slice(11); }).sort(function (a, b) { return a - b; });
+}
+function mergeIv(hours) {
+  var out = [];
+  hours.forEach(function (hr) { var a = hr * 60, b = a + 60, l = out[out.length - 1]; if (l && l[1] === a) l[1] = b; else out.push([a, b]); });
+  return out;
+}
+function weekCount(tid, date, excludeId) {
+  var ws = weekStart(date);
+  return S.data.lessons.filter(function (l) { return l.teacherId === tid && l.id !== excludeId && weekStart(l.date) === ws; }).length;
+}
+
+/** 希望1件に対する先生の候補を計算する */
+function candidatesFor(r) {
+  var stu = uById(r.studentId), L = r.len, w0 = toMin(r.from), w1 = toMin(r.to);
+  var stuBusy = S.data.lessons.filter(function (l) { return l.date === r.date && l.studentId === r.studentId; }).map(function (l) { return [toMin(l.start), toMin(l.end)]; });
+  var list = [], subjOk = 0;
+  teachersOf().forEach(function (t) {
+    if (t.subjects.indexOf(r.subject) < 0) return;
+    if (t.grades.length && stu && t.grades.indexOf(stu.grade) < 0) return;
+    subjOk++;
+    var iv = mergeIv(availHours(t.id, r.date));
+    var busy = S.data.lessons.filter(function (l) { return l.date === r.date && l.teacherId === t.id; }).map(function (l) { return [toMin(l.start), toMin(l.end)]; }).concat(stuBusy);
+    var ok = [];
+    for (var s = w0; s + L <= w1; s += 5) {
+      if (iv.some(function (x) { return x[0] <= s && s + L <= x[1]; }) && !busy.some(function (x) { return x[0] < s + L && s < x[1]; })) ok.push(s);
+    }
+    if (!ok.length) return;
+    var wk = weekCount(t.id, r.date);
+    list.push({ teacher: t, start: ok[0], last: ok[ok.length - 1], len: L, pref: r.teacherId === t.id, wk: wk, over: t.maxPerWeek > 0 && wk >= t.maxPerWeek });
+  });
+  list.sort(function (a, b) { return (b.pref - a.pref) || (a.over - b.over) || (a.wk - b.wk) || (a.start - b.start); });
+  var why = '';
+  if (!list.length) why = subjOk === 0 ? 'この科目・学年を担当できる先生が登録されていません(「ユーザー」で担当科目を確認)' : '科目が合う先生(' + subjOk + '人)に、この時間帯で空きのある人がいません';
+  var pref = r.teacherId ? uById(r.teacherId) : null, prefWhy = '';
+  if (pref && !list.some(function (c) { return c.pref; })) {
+    prefWhy = pref.name + ' 先生は、' + (pref.subjects.indexOf(r.subject) < 0 ? 'この科目の担当ではありません' : (pref.grades.length && stu && pref.grades.indexOf(stu.grade) < 0) ? 'この学年の担当ではありません' : 'この時間帯に空き(または授業の空き)がありません');
+  }
+  return { list: list, why: why, prefWhy: prefWhy };
+}
+
+/* ---------- 授業の登録・編集モーダル ---------- */
+function lessonModal(init) {
+  var L = Object.assign({ id: '', date: S.month + '-01', start: '16:00', end: '17:20', teacherId: '', studentId: '', subject: S.cfg.subjects[0], note: '', requestId: '' }, init);
+  var ts = teachersOf(), ss = studentsOf();
+  var date = h('input', { type: 'date', value: L.date });
+  var start = h('input', { type: 'time', step: 300, value: L.start });
+  var end = h('input', { type: 'time', step: 300, value: L.end });
+  var teacher = select([{ v: '', l: '(選んでください)' }].concat(ts.map(function (t) { return { v: t.id, l: t.name }; })), L.teacherId, check);
+  var student = select([{ v: '', l: '(選んでください)' }].concat(ss.map(function (s) { return { v: s.id, l: s.name + '(' + s.grade + ')' }; })), L.studentId, check);
+  var subject = select(S.cfg.subjects, L.subject);
+  var note = h('input', { type: 'text', maxlength: 200, value: L.note });
+  var hint = h('div', { class: 'notice small' });
+  var err = h('div', { class: 'err', role: 'alert' });
+  [date, start, end].forEach(function (e) { e.addEventListener('change', check); });
+  function check() {
+    hint.className = 'notice small'; hint.textContent = '';
+    if (!teacher.value || !date.value || !start.value || !end.value || toMin(end.value) <= toMin(start.value)) return;
+    var t = uById(teacher.value), hs = availHours(t.id, date.value), miss = [];
+    for (var hr = Math.floor(toMin(start.value) / 60); hr * 60 < toMin(end.value); hr++) if (hs.indexOf(hr) < 0) miss.push(pad(hr) + ':00');
+    var wk = weekCount(t.id, date.value, L.id) + 1, msgs = [];
+    if (miss.length) { hint.classList.add('warn'); msgs.push('⚠ ' + t.name + ' 先生が○を付けていない時間を含みます(' + miss.join('、') + ')'); }
+    else { hint.classList.add('ok'); msgs.push('✓ ' + t.name + ' 先生の空きに収まっています'); }
+    if (t.maxPerWeek > 0 && wk > t.maxPerWeek) { hint.classList.remove('ok'); hint.classList.add('warn'); msgs.push('⚠ この週は ' + wk + ' コマ目です(上限 ' + t.maxPerWeek + ')'); }
+    hint.textContent = msgs.join(' / ');
+  }
+  check();
+  modal(L.id ? '授業を編集' : '授業を追加', h('div', { class: 'formgrid' },
+    h('label', { class: 'field full' }, '生徒', student),
+    h('label', { class: 'field' }, '科目', subject),
+    h('label', { class: 'field' }, '先生', teacher),
+    h('label', { class: 'field' }, '日付', date),
+    h('div', { class: 'field' }, h('span', null, '時間(開始〜終了)'), h('div', { class: 'row' }, start, '〜', end)),
+    h('label', { class: 'field full' }, 'メモ(任意)', note),
+    h('div', { class: 'full' }, hint), h('div', { class: 'full' }, err)), function (close) {
+    var b = [h('button', { class: 'btn primary', onclick: async function () {
+      var r = await call('saveLesson', { id: L.id, date: date.value, start: start.value, end: end.value, teacherId: teacher.value, studentId: student.value, subject: subject.value, note: note.value, requestId: L.requestId });
+      if (!r.ok) { err.textContent = r.error; return; }
+      close(); toast(L.id ? '授業を更新しました' : '授業を確定しました'); await loadMonth();
+    } }, L.id ? '保存' : '確定する'), h('button', { class: 'btn', onclick: close }, 'キャンセル')];
+    if (L.id) b.push(h('span', { class: 'spacer' }), h('button', { class: 'btn danger', onclick: async function () {
+      if (!confirm('この授業を削除しますか?')) return;
+      var r = await act('deleteLesson', { id: L.id }, '削除しました'); if (r) { close(); await loadMonth(); }
+    } }, '授業を削除'));
+    return b;
+  });
+}
+
+/* ========== 管理者: マッチング ========== */
+function matchView() {
+  var D = S.data, studs = studentsOf();
+  var reqsBy = {}; D.requests.forEach(function (r) { (reqsBy[r.studentId] = reqsBy[r.studentId] || []).push(r); });
+  var doneIds = {}; D.lessons.forEach(function (l) { if (l.requestId) doneIds[l.requestId] = l; });
+  if (!S.sel || !uById(S.sel)) S.sel = studs.length ? studs[0].id : null;
+  var list = h('div', { class: 'slist', role: 'list' }, studs.length ? studs.map(function (s) {
+    var rs = reqsBy[s.id] || [], open = rs.filter(function (r) { return !doneIds[r.id]; }).length;
+    return h('button', { class: 'sitem', role: 'listitem', 'aria-current': S.sel === s.id, onclick: function () { S.sel = s.id; render(); } },
+      h('b', null, s.name), h('span', { class: 'small muted' }, s.grade),
+      h('span', null, !rs.length ? h('span', { class: 'badge gray' }, '希望 未提出') : open ? h('span', { class: 'badge warn' }, '未確定 ' + open + '件 / 希望 ' + rs.length + '件') : h('span', { class: 'badge ok' }, '全て確定(' + rs.length + '件)')));
+  }) : h('div', { class: 'muted' }, '生徒が登録されていません。「ユーザー」から追加してください。'));
+  var detail = S.sel ? studentDetail(uById(S.sel), reqsBy[S.sel] || [], doneIds) : h('div', { class: 'card muted' }, '左の一覧から生徒の名前を選んでください。');
+  return h('div', { class: 'stack' },
+    deadlineBar(),
+    h('div', { class: 'split' }, h('div', { class: 'card stack' }, h('h3', null, '生徒(' + fmtMonth(S.month) + ')'), list), detail));
+}
+function deadlineBar() {
+  var D = S.data;
+  var teachersIn = teachersOf().filter(function (t) { return (D.avail[t.id] || []).length; }).length;
+  return h('div', { class: 'row noprint' },
+    h('span', { class: 'badge' }, '空きを出した先生 ' + teachersIn + ' / ' + teachersOf().length + '人'),
+    h('span', { class: 'badge' }, '希望を出した生徒 ' + new Set(D.requests.map(function (r) { return r.studentId; })).size + ' / ' + studentsOf().length + '人'),
+    h('span', { class: 'badge ' + (D.deadline ? '' : 'gray') }, D.deadline ? '提出締切 ' + fmtDate(D.deadline) : '締切 未設定(「設定」で決められます)'));
+}
+function studentDetail(stu, reqs, doneIds) {
+  reqs = reqs.slice().sort(function (a, b) { return (a.date + a.from).localeCompare(b.date + b.from) || a.prio - b.prio; });
+  var mine = S.data.lessons.filter(function (l) { return l.studentId === stu.id; });
+  return h('div', { class: 'stack' },
+    h('div', { class: 'card stack' },
+      h('div', { class: 'row' }, h('h2', null, stu.name), h('span', { class: 'badge' }, stu.grade), stu.memo ? h('span', { class: 'muted small' }, stu.memo) : null,
+        h('span', { class: 'spacer' }), h('button', { class: 'btn', onclick: function () { lessonModal({ studentId: stu.id }); } }, '＋ 手動で授業を追加')),
+      reqs.length ? h('div', { class: 'stack' }, reqs.map(function (r) { return reqCard(r, doneIds[r.id]); })) : h('div', { class: 'muted' }, 'この月の希望はまだ提出されていません。')),
+    mine.length ? h('div', { class: 'card stack' }, h('h3', null, 'この月の確定した授業'), lessonTable(mine, true)) : null);
+}
+function reqCard(r, lesson) {
+  var teacher = r.teacherId ? uById(r.teacherId) : null;
+  var head = h('div', { class: 'chips' },
+    h('span', { class: 'chip main' }, '第' + r.prio + '希望'), h('span', { class: 'chip' }, r.subject), h('span', { class: 'chip' }, fmtDate(r.date)),
+    h('span', { class: 'chip' }, r.from + '〜' + r.to + ' のどこか'), h('span', { class: 'chip' }, r.len + '分'),
+    h('span', { class: 'chip' }, teacher ? '希望の先生: ' + teacher.name : '先生の指定なし'), r.note ? h('span', { class: 'muted' }, '「' + r.note + '」') : null);
+  if (lesson) {
+    var t = uById(lesson.teacherId);
+    return h('div', { class: 'req done' }, head, h('div', { class: 'row' }, h('span', { class: 'badge ok' }, '確定済み'),
+      fmtDate(lesson.date) + ' ' + lesson.start + '〜' + lesson.end + ' / ' + (t ? t.name : '?') + ' 先生',
+      h('button', { class: 'btn ghost', onclick: function () { lessonModal(lesson); } }, '編集')));
+  }
+  var c = candidatesFor(r);
+  return h('div', { class: 'req' }, head,
+    h('div', { class: 'cands' },
+      c.list.length ? c.list.slice(0, 6).map(function (x) {
+        return h('div', { class: 'cand' }, h('b', null, x.teacher.name),
+          h('span', null, fmtMin(x.start) + '〜' + fmtMin(x.start + x.len)), x.last > x.start ? h('span', { class: 'muted small' }, '(' + fmtMin(x.last) + '開始まで可)') : null,
+          x.pref ? h('span', { class: 'badge ok' }, '希望の先生') : null,
+          h('span', { class: 'badge ' + (x.over ? 'warn' : 'gray') }, '今週 ' + x.wk + (x.teacher.maxPerWeek ? '/' + x.teacher.maxPerWeek : '') + 'コマ' + (x.over ? ' 上限' : '')),
+          h('span', { class: 'spacer' }),
+          h('button', { class: 'btn primary', onclick: function () {
+            lessonModal({ date: r.date, start: fmtMin(x.start), end: fmtMin(x.start + x.len), teacherId: x.teacher.id, studentId: r.studentId, subject: r.subject, note: '', requestId: r.id });
+          } }, 'この候補で確定'));
+      }) : h('div', { class: 'notice warn' }, c.why),
+      c.prefWhy ? h('div', { class: 'small muted' }, '※ ' + c.prefWhy) : null,
+      c.list.length ? null : h('div', null, h('button', { class: 'btn', onclick: function () {
+        lessonModal({ date: r.date, start: r.from, end: fmtMin(toMin(r.from) + r.len), studentId: r.studentId, subject: r.subject, requestId: r.id, teacherId: r.teacherId });
+      } }, '手動で確定する'))));
+}
+
+/* ========== 管理者: 時間割 ========== */
+function lessonTable(lessons, withActions) {
+  return h('table', { class: 't' }, h('thead', null, h('tr', null, ['日付', '時間', '先生', '生徒', '科目', 'メモ'].concat(withActions ? [''] : []).map(function (x) { return h('th', null, x); }))),
+    h('tbody', null, lessons.map(function (l) {
+      var t = uById(l.teacherId), s = uById(l.studentId);
+      return h('tr', null, h('td', null, fmtDate(l.date)), h('td', null, l.start + '〜' + l.end), h('td', null, t ? t.name : '(削除済み)'),
+        h('td', null, s ? s.name + '(' + s.grade + ')' : '(削除済み)'), h('td', null, l.subject), h('td', null, l.note),
+        withActions ? h('td', { class: 'noprint' }, h('button', { class: 'btn ghost', onclick: function () { lessonModal(l); } }, '編集')) : null);
+    })));
+}
+function schedView() {
+  var D = S.data, ft = S.tsel || '';
+  var fsel = select([{ v: '', l: '先生: 全員' }].concat(teachersOf().map(function (t) { return { v: t.id, l: t.name }; })), ft, function (e) { S.tsel = e.target.value; render(); });
+  var ls = D.lessons.filter(function (l) { return !ft || l.teacherId === ft; });
+  return h('div', { class: 'card stack' },
+    h('div', { class: 'row noprint' }, h('h2', null, fmtMonth(S.month) + ' の時間割'), h('span', { class: 'badge gray' }, ls.length + 'コマ'), h('span', { class: 'spacer' }), fsel,
+      h('button', { class: 'btn', onclick: function () { lessonModal({}); } }, '＋ 授業を追加'),
+      h('button', { class: 'btn', onclick: function () { csvModal(ls); } }, 'CSV出力'),
+      h('button', { class: 'btn', onclick: function () { window.print(); } }, '印刷')),
+    h('div', { class: 'printtitle' }, fmtMonth(S.month) + ' 時間割' + (ft ? '(' + uById(ft).name + ' 先生)' : '')),
+    ls.length ? lessonTable(ls, true) : h('div', { class: 'muted' }, 'この月の授業はまだありません。「マッチング」から確定すると、ここに並びます。'));
+}
+function csvModal(ls) {
+  function q(v) { v = String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+  var rows = [['日付', '曜日', '開始', '終了', '先生', '生徒', '学年', '科目', 'メモ']].concat(ls.map(function (l) {
+    var t = uById(l.teacherId), s = uById(l.studentId);
+    return [l.date, DOW[dowOf(l.date)], l.start, l.end, t ? t.name : '', s ? s.name : '', s ? s.grade : '', l.subject, l.note];
+  }));
+  var csv = rows.map(function (r) { return r.map(q).join(','); }).join('\r\n');
+  var ta = h('textarea', { rows: 10, readOnly: true, style: 'width:100%;font-family:monospace;font-size:12px' });
+  ta.value = csv;
+  modal('CSV出力', h('div', { class: 'stack' }, h('div', { class: 'muted small' }, 'ダウンロードできない場合は、コピーしてExcel等に貼り付けてください。'), ta), function (close) {
+    return [h('button', { class: 'btn primary', onclick: function () {
+      try {
+        var a = h('a', { href: URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' })), download: '時間割_' + S.month + '.csv' });
+        document.body.appendChild(a); a.click(); a.remove();
+      } catch (e) { toast('ダウンロードできませんでした。コピーを使ってください', true); }
+    } }, 'ダウンロード'), h('button', { class: 'btn', onclick: function () {
+      ta.select();
+      (navigator.clipboard ? navigator.clipboard.writeText(csv) : Promise.reject()).then(function () { toast('コピーしました'); }, function () { document.execCommand('copy'); toast('コピーしました'); });
+    } }, 'コピー'), h('button', { class: 'btn', onclick: close }, '閉じる')];
+  }, true);
+}
+
+/* ========== 管理者: アルバイトの空き ========== */
+function teachersView() {
+  var D = S.data, ts = teachersOf();
+  if (!S.tsel2 || !uById(S.tsel2)) S.tsel2 = ts.length ? ts[0].id : null;
+  var sum = ts.length ? h('table', { class: 't' }, h('thead', null, h('tr', null, ['先生', '担当科目', '学年', '週の上限', '○の時間', '授業(月)', ''].map(function (x) { return h('th', null, x); }))),
+    h('tbody', null, ts.map(function (t) {
+      var n = (D.avail[t.id] || []).length, ls = D.lessons.filter(function (l) { return l.teacherId === t.id; }).length;
+      return h('tr', null, h('td', null, h('b', null, t.name)), h('td', null, t.subjects.join('、')), h('td', null, t.grades.join('、') || '全学年'), h('td', null, t.maxPerWeek || '制限なし'),
+        h('td', null, n ? n + '時間' : h('span', { class: 'badge warn' }, '未提出')), h('td', null, ls + 'コマ'),
+        h('td', null, h('button', { class: 'btn ghost', onclick: function () { S.tsel2 = t.id; render(); } }, '空きを見る')));
+    }))) : h('div', { class: 'muted' }, 'アルバイトが登録されていません。「ユーザー」から追加してください。');
+  var t = S.tsel2 ? uById(S.tsel2) : null;
+  return h('div', { class: 'stack' }, h('div', { class: 'card stack' }, h('h2', null, 'アルバイトの提出状況(' + fmtMonth(S.month) + ')'), sum),
+    t ? h('div', { class: 'card stack' }, h('h2', null, t.name + ' 先生の空き時間'),
+      availGrid({ month: S.month, slots: new Set(D.avail[t.id] || []), lessons: D.lessons.filter(function (l) { return l.teacherId === t.id; }), editable: false }), legend()) : null);
+}
+
+/* ========== 管理者: ユーザー ========== */
+function usersView() {
+  var D = S.data;
+  function table(role) {
+    var us = D.users.filter(function (u) { return u.role === role; });
+    var cols = role === 'teacher' ? ['名前', 'メール', '担当科目', '学年', '週の上限', ''] : ['生徒名', 'メール', '学年', 'メモ', ''];
+    return h('table', { class: 't' }, h('thead', null, h('tr', null, cols.map(function (x) { return h('th', null, x); }))),
+      h('tbody', null, us.length ? us.map(function (u) {
+        var edit = h('td', null, h('button', { class: 'btn ghost', onclick: function () { userModal(u); } }, '編集'));
+        return role === 'teacher'
+          ? h('tr', null, h('td', null, h('b', null, u.name)), h('td', null, u.email), h('td', null, u.subjects.join('、')), h('td', null, u.grades.join('、') || '全学年'), h('td', null, u.maxPerWeek || '制限なし'), edit)
+          : h('tr', null, h('td', null, h('b', null, u.name)), h('td', null, u.email), h('td', null, u.grade), h('td', null, u.memo), edit);
+      }) : h('tr', null, h('td', { colspan: cols.length, class: 'muted' }, 'まだ登録されていません'))));
+  }
+  return h('div', { class: 'stack' },
+    h('div', { class: 'card stack' }, h('div', { class: 'row' }, h('h2', null, 'アルバイト'), h('span', { class: 'spacer' }), h('button', { class: 'btn primary', onclick: function () { userModal({ role: 'teacher' }); } }, '＋ アルバイトを追加')), table('teacher')),
+    h('div', { class: 'card stack' }, h('div', { class: 'row' }, h('h2', null, '生徒(保護者アカウント)'), h('span', { class: 'spacer' }), h('button', { class: 'btn primary', onclick: function () { userModal({ role: 'parent' }); } }, '＋ 生徒を追加')),
+      h('div', { class: 'muted small' }, '1つのアカウントが1人の生徒です。兄弟姉妹は別々に登録してください。'), table('parent')));
+}
+function userModal(u) {
+  var isNew = !u.id, isT = u.role === 'teacher';
+  var name = h('input', { type: 'text', maxlength: 40, value: u.name || '' });
+  var email = h('input', { type: 'email', value: u.email || '', autocomplete: 'off' });
+  var pw = h('input', { type: 'password', autocomplete: 'new-password', placeholder: isNew ? '8文字以上' : '変えるときだけ入力' });
+  var memo = h('input', { type: 'text', maxlength: 200, value: u.memo || '' });
+  var grade = select(S.grades, u.grade || S.grades[0]);
+  var mx = h('input', { type: 'number', min: 0, max: 50, value: u.maxPerWeek || '', placeholder: '空なら制限なし' });
+  function checks(list, chosen) {
+    var boxes = list.map(function (x) { return h('input', { type: 'checkbox', value: x, checked: chosen.indexOf(x) >= 0 }); });
+    var el = h('div', { class: 'checks' }, boxes.map(function (b) { return h('label', null, b, b.value); }));
+    el.values = function () { return boxes.filter(function (b) { return b.checked; }).map(function (b) { return b.value; }); };
+    return el;
+  }
+  var subj = checks(S.cfg.subjects, u.subjects || []), gr = checks(S.grades, u.grades || []);
+  var err = h('div', { class: 'err', role: 'alert' });
+  modal((isNew ? '追加: ' : '編集: ') + (isT ? 'アルバイト' : '生徒'), h('div', { class: 'formgrid' },
+    h('label', { class: 'field' }, isT ? '名前' : '生徒の名前', name),
+    h('label', { class: 'field' }, 'メールアドレス(ログインID)', email),
+    h('label', { class: 'field full' }, isNew ? '最初のパスワード' : '新しいパスワード', pw),
+    isT ? [h('div', { class: 'field full' }, h('span', null, '教えられる科目'), subj), h('div', { class: 'field full' }, h('span', null, '教えられる学年(未選択なら全学年)'), gr),
+      h('label', { class: 'field' }, '週の最大コマ数', mx)] : h('label', { class: 'field' }, '学年', grade),
+    h('label', { class: 'field full' }, isT ? 'メモ(管理者だけが見られます)' : 'メモ(保護者名など。管理者だけが見られます)', memo), h('div', { class: 'full' }, err)), function (close) {
+    var b = [h('button', { class: 'btn primary', onclick: async function () {
+      var r = await call('saveUser', { id: u.id, role: u.role, name: name.value, email: email.value, password: pw.value, memo: memo.value,
+        grade: grade.value, subjects: subj.values(), grades: gr.values(), maxPerWeek: mx.value });
+      if (!r.ok) { err.textContent = r.error; return; }
+      close(); toast('保存しました'); await loadMonth();
+    } }, '保存'), h('button', { class: 'btn', onclick: close }, 'キャンセル')];
+    if (!isNew) b.push(h('span', { class: 'spacer' }), h('button', { class: 'btn danger', onclick: async function () {
+      if (!confirm(u.name + ' を削除しますか?この人の希望・空き・授業の記録も消えます。')) return;
+      var r = await act('deleteUser', { id: u.id }, '削除しました'); if (r) { close(); await loadMonth(); }
+    } }, '削除'));
+    return b;
+  });
+}
+
+/* ========== 管理者: 設定 ========== */
+function settingsView() {
+  var D = S.data, st = D.settings;
+  var subj = h('textarea', { rows: 7, style: 'width:240px' }); subj.value = st.subjects.join('\n');
+  var hf = select(range(0, 23), st.hourFrom), ht = select(range(1, 24), st.hourTo);
+  function range(a, b) { var o = []; for (var i = a; i <= b; i++) o.push({ v: i, l: pad(i) + ':00' }); return o; }
+  var dl = h('input', { type: 'date', value: D.deadline || '' });
+  return h('div', { class: 'stack' },
+    h('div', { class: 'card stack' }, h('h2', null, fmtMonth(S.month) + ' の提出締切'),
+      h('div', { class: 'muted small' }, '締切の翌日から、アルバイトと保護者は変更できなくなります(管理者は変更できます)。空にすると締切なしです。'),
+      h('div', { class: 'row' }, dl, h('button', { class: 'btn primary', onclick: async function () { if (await act('setDeadline', { month: S.month, date: dl.value }, '締切を保存しました')) await loadMonth(); } }, '保存'))),
+    h('div', { class: 'card stack' }, h('h2', null, '科目と授業の時間帯'),
+      h('div', { class: 'row', style: 'align-items:flex-start' },
+        h('label', { class: 'field' }, '科目(1行に1つ)', subj),
+        h('div', { class: 'stack' },
+          h('label', { class: 'field' }, '空きを聞く時間帯: 開始', hf), h('label', { class: 'field' }, '終了', ht))),
+      h('div', { class: 'muted small' }, '時間帯を変えると、アルバイトの○を付ける表の範囲が変わります。'),
+      h('div', null, h('button', { class: 'btn primary', onclick: async function () {
+        var r = await act('saveSettings', { subjects: subj.value.split('\n'), hourFrom: hf.value, hourTo: ht.value }, '設定を保存しました');
+        if (r) { await loadMonth(); }
+      } }, '保存'))));
+}
+
+/* ========== 起動 ========== */
+window.addEventListener('beforeunload', function (e) { if (S.dirty) { e.preventDefault(); e.returnValue = ''; } });
+S.token = loadToken();
+if (S.token) start(); else toLogin();
+</script>
+</body>
+</html>
